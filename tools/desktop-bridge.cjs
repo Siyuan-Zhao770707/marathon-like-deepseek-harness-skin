@@ -7,7 +7,10 @@ const root = path.resolve(__dirname, '..');
 const appRoot = process.env.DSH_DESKTOP_DIR || path.resolve(root, '..');
 const archive = path.join(appRoot, 'resources/app.asar');
 const stateFile = path.join(root, 'validation/desktop-bridge.json');
-const SUPPORTED_SHA = '983ca71114e6dfd353fc79af5a1f9481a250ee64c2a3c757673029b811b23bc2';
+const SUPPORTED_DESKTOPS = Object.freeze({
+  '983ca71114e6dfd353fc79af5a1f9481a250ee64c2a3c757673029b811b23bc2': '0.2.0-rc.2',
+  '47874618bf5b3011fcaac10cd4c85f69da333e70d4f99b921207c78d0999512a': '0.2.1-rc.2'
+});
 const CHANNEL = 'dsh-desktop:industrial-window-controls';
 const sha = data => crypto.createHash('sha256').update(data).digest('hex');
 
@@ -116,8 +119,33 @@ function verify(original, updated, replacements) {
 
 function assertStopped(){
   const exe=path.join(appRoot,'DeepSeek Harness.exe');
-  const output=execFileSync('powershell.exe',['-NoProfile','-Command','Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $env:INDUSTRIAL_DESKTOP_EXE } | Select-Object -ExpandProperty ProcessId'],{encoding:'utf8',env:{...process.env,INDUSTRIAL_DESKTOP_EXE:exe},windowsHide:true}).trim();
+  const output=execFileSync('powershell.exe',['-NoProfile','-Command',"$ErrorActionPreference='Stop'; Get-Process | Where-Object { $_.ProcessName -eq 'DeepSeek Harness' -and $_.Path -eq $env:INDUSTRIAL_DESKTOP_EXE } | Select-Object -ExpandProperty Id"],{encoding:'utf8',env:{...process.env,INDUSTRIAL_DESKTOP_EXE:exe},windowsHide:true}).trim();
   if(output)throw new Error('Close Harness before changing the desktop archive.');
+}
+
+function prepare(original){
+  const originalHash=sha(original),supportedDesktop=SUPPORTED_DESKTOPS[originalHash];
+  if(!supportedDesktop)throw new Error('Desktop has changed. This adapter supports only hash-verified 0.2.0-rc.2 and 0.2.1-rc.2 archives; no files changed.');
+  const source=parse(original);
+  if(JSON.parse(source.read('package.json')).version!==supportedDesktop)throw new Error('Desktop version does not match its verified archive. No files changed.');
+  const replacements=transform(source.read('lib/main.js').toString(),source.read('lib/preload-app.cjs').toString());
+  const stage=path.join(root,'.validation/native-stage');fs.mkdirSync(stage,{recursive:true});
+  for(const [name,text] of Object.entries(replacements)){const file=path.join(stage,path.basename(name));fs.writeFileSync(file,text);execFileSync(process.execPath,['--check',file],{windowsHide:true});}
+  const updated=rebuild(original,replacements),verifiedEntries=verify(original,updated,replacements);
+  return {originalHash,supportedDesktop,replacements,updated,verifiedEntries};
+}
+
+function check(){
+  const original=fs.readFileSync(archive);
+  if(fs.existsSync(stateFile)){
+    const record=JSON.parse(fs.readFileSync(stateFile,'utf8'));
+    if(sha(original)===record.patchedSha256){
+      if(sha(fs.readFileSync(record.backupArchive))!==record.originalSha256)throw new Error('Original archive backup failed verification.');
+      console.log(JSON.stringify({status:'already-installed',...record}));return;
+    }
+  }
+  const prepared=prepare(original);
+  console.log(JSON.stringify({status:'verified',supportedDesktop:prepared.supportedDesktop,originalSha256:prepared.originalHash,patchedSha256:sha(prepared.updated),verifiedEntries:prepared.verifiedEntries,changedEntries:Object.keys(prepared.replacements)}));
 }
 
 function install(){
@@ -126,15 +154,11 @@ function install(){
     const record=JSON.parse(fs.readFileSync(stateFile,'utf8'));
     if(originalHash===record.patchedSha256){console.log(JSON.stringify({status:'already-installed',...record}));return;}
   }
-  if(originalHash!==SUPPORTED_SHA)throw new Error('Desktop has changed. This adapter supports the verified 0.2.0-rc.2 archive only; no files changed.');
-  const source=parse(original);const replacements=transform(source.read('lib/main.js').toString(),source.read('lib/preload-app.cjs').toString());
-  const stage=path.join(root,'.validation/native-stage');fs.mkdirSync(stage,{recursive:true});
-  for(const [name,text] of Object.entries(replacements)){const file=path.join(stage,path.basename(name));fs.writeFileSync(file,text);execFileSync(process.execPath,['--check',file],{windowsHide:true});}
-  const updated=rebuild(original,replacements),verifiedEntries=verify(original,updated,replacements);
+  const {supportedDesktop,replacements,updated,verifiedEntries}=prepare(original);
   const stamp=new Date().toISOString().replaceAll(/[:.]/g,'-'),backup=path.join(appRoot,'_backups','desktop-caption-'+stamp);
   fs.mkdirSync(backup,{recursive:true});const backupArchive=path.join(backup,'app.asar');fs.writeFileSync(backupArchive,original);
   if(sha(fs.readFileSync(archive))!==originalHash)throw new Error('Archive changed during backup. No files replaced.');
-  const record={version:1,supportedDesktop:'0.2.0-rc.2',installedAt:new Date().toISOString(),archive,backupArchive,originalSha256:originalHash,patchedSha256:sha(updated),verifiedEntries,changedEntries:Object.keys(replacements)};
+  const record={version:1,supportedDesktop,installedAt:new Date().toISOString(),archive,backupArchive,originalSha256:originalHash,patchedSha256:sha(updated),verifiedEntries,changedEntries:Object.keys(replacements)};
   const temp=archive+'.industrial.tmp';fs.writeFileSync(temp,updated);if(sha(fs.readFileSync(temp))!==record.patchedSha256)throw new Error('Temporary archive verification failed.');
   assertStopped();fs.renameSync(temp,archive);fs.mkdirSync(path.dirname(stateFile),{recursive:true});fs.writeFileSync(stateFile,JSON.stringify(record,null,2));fs.writeFileSync(path.join(backup,'restoration.json'),JSON.stringify(record,null,2));
   console.log(JSON.stringify({status:'installed',...record}));
@@ -147,5 +171,5 @@ function restore(){
   const temp=archive+'.industrial-restore.tmp';fs.writeFileSync(temp,original);fs.renameSync(temp,archive);
   fs.writeFileSync(stateFile,JSON.stringify({...record,restoredAt:new Date().toISOString()},null,2));console.log(JSON.stringify({status:'restored',sha256:record.originalSha256}));
 }
-if(require.main===module){const action=process.argv[2];if(action==='install')install();else if(action==='restore')restore();else throw new Error('Use desktop-bridge.cjs install or restore');}
-module.exports={transform,parse,rebuild,verify,MAIN_IPC,CHANNEL};
+if(require.main===module){const action=process.argv[2];if(action==='check')check();else if(action==='install')install();else if(action==='restore')restore();else throw new Error('Use desktop-bridge.cjs check, install or restore');}
+module.exports={transform,parse,rebuild,verify,MAIN_IPC,CHANNEL,SUPPORTED_DESKTOPS};

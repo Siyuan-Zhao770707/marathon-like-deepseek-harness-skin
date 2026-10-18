@@ -4,7 +4,7 @@
 
 从 Marathon 的大色块、硬边界和工业排版开始：字标切开，按钮收方，工作区放上三位数字。正文留出空间，切换时让颜色沿着界面的方向走。
 
-`v2.4.0` · `Windows` · `Harness 0.2.0-rc.2`
+`v2.4.2` · `Windows` · `Harness 0.2.0-rc.2 / 0.2.1（含 RC）`
 
 ![皮肤设计全貌，独立展示页](docs/media/overview.jpg)
 
@@ -41,6 +41,10 @@
 正式插件统计整个应用所有工作区、会话与子代理的**输入 + 输出 token**，按北京时间划分日期。输入包含缓存，推理已经包含在输出里；分叉继承记录排除，避免重复计数。悬停或键盘聚焦可以查看当天的输入、输出与总量。
 
 点击图旁齿轮，可保存三个递增的界限。恰好等于界限时保留当前档，超过后才换色；侧栏收起后留下今日用量小按钮和设置入口。
+
+点击 **TOKEN 活动** 标题可单独折叠或展开日历，收起后保留今日用量与齿轮设置。折叠状态会在本机自动保存，重启或切换侧栏后仍然保留；按钮支持键盘 Enter / 空格操作。
+
+`v2.4.2` 更新了 DSH 0.2.1 的插件版本声明，支持新版启动时的兼容检查，并保留 Windows 运行窗口图标功能。
 
 ![修改每日界限、校验递增顺序，保存并恢复默认](docs/media/19-token-thresholds.gif)
 
@@ -126,11 +130,11 @@
 
 ## 安装
 
-1. 从 [Releases](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.0) 下载 `dsh-industrial-acid-skin-2.4.0.tgz`。
+1. 按[构建步骤](docs/INSTALL.md#构建与测试)从本仓库源码运行 `npm run build` 和 `npm pack`，生成 `dsh-industrial-acid-skin-2.4.2.tgz`。历史公开版本见 [Releases](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases)。
 2. 在 Harness 的「插件 → 添加插件」中导入并启用。
 3. 在侧栏调色盘，或「设置 → 通用设置 → 皮肤外观」里调整颜色和动效。
 
-当前验证范围是 **Windows / Harness 0.2.0-rc.2**。竖排窗口按钮需要单独的 Windows 桌面适配器；安装、构建和回退步骤放在 [安装与开发](docs/INSTALL.md) 里。
+本次桌面验证环境为 **Windows / Harness 0.2.1-rc.2**，兼容声明覆盖 0.2.0-rc.2 至 0.2.1（含 RC）。可选标题栏适配器也已支持已核对哈希的 0.2.1-rc.2，可将最小化、最大化／还原和关闭按钮恢复为右上角竖排。安装、构建和回退步骤放在 [安装与开发](docs/INSTALL.md) 里。
 
 想自己拨一拨滑块、试一下切换，可以运行仓库里的展示页：
 

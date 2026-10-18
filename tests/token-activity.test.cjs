@@ -88,3 +88,39 @@ test('Client cancels polling, connection subscriptions and pending requests when
   assert.equal(intervals.size,0); assert.equal(listeners.size,0); assert.equal(documentListeners.size,0);
   assert.equal(pendingSignal.aborted,true); assert.equal(unsubscribe,1);
 });
+
+function activityStore(storage = new Map(), blocked = false) {
+  const listeners = new Map(), disposers = [];
+  const sandbox = { ID:'skin', AbortController, normalizeTokenThresholds:value=>Array.isArray(value)?value:[1,2,3], validTokenThresholds:()=>true,
+    localStorage:{getItem:key=>{if(blocked)throw new Error('blocked');return storage.get(key)??null;},setItem:(key,value)=>{if(blocked)throw new Error('blocked');storage.set(key,value);}},
+    window:{addEventListener:(name,fn)=>listeners.set(name,fn),removeEventListener:name=>listeners.delete(name)},
+    document:{addEventListener(){},removeEventListener(){}}, ctx:{effect:fn=>disposers.push(fn())} };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../src/token-activity.js'),'utf8')+'\nglobalThis.store=createTokenActivityStore(ctx);',sandbox);
+  return {store:sandbox.store, storage, notify:key=>listeners.get('storage')({key}), dispose:()=>disposers.forEach(fn=>fn())};
+}
+
+test('calendar collapse persists across remounts, synchronizes windows and keeps threshold preferences', () => {
+  const storage = new Map([['skin:token-thresholds','[10,20,30]']]);
+  const first = activityStore(storage);
+  assert.equal(first.store.getSnapshot().collapsed,false);
+  first.store.setCollapsed(true);
+  assert.equal(storage.get('skin:token-calendar-collapsed'),'true');
+  assert.deepEqual([...first.store.getSnapshot().thresholds],[10,20,30]);
+  first.dispose();
+  const next = activityStore(storage);
+  assert.equal(next.store.getSnapshot().collapsed,true);
+  storage.set('skin:token-calendar-collapsed','false');next.notify('skin:token-calendar-collapsed');
+  assert.equal(next.store.getSnapshot().collapsed,false);
+  storage.set('skin:token-calendar-collapsed','true');next.notify(null);
+  assert.equal(next.store.getSnapshot().collapsed,true);
+  storage.delete('skin:token-calendar-collapsed');next.notify(null);
+  assert.equal(next.store.getSnapshot().collapsed,false);
+  next.dispose();
+});
+
+test('calendar remains collapsible when persistent storage is unavailable', () => {
+  const runtime = activityStore(new Map(),true);
+  runtime.store.setCollapsed(true);assert.equal(runtime.store.getSnapshot().collapsed,true);
+  runtime.store.setCollapsed(false);assert.equal(runtime.store.getSnapshot().collapsed,false);
+  runtime.dispose();
+});

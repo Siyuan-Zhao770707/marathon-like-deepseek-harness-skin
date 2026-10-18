@@ -1,6 +1,7 @@
 import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { installTokenActivityHost } from './lib/token-activity-host.js';
+import { installDesktopIcon } from './lib/desktop-icon-host.js';
 
 /** Host half: validates options and serves counters from read-only session observations. */
 export const name = 'industrial-acid-skin';
@@ -16,6 +17,10 @@ export function apply(ctx, raw = {}) {
   if (raw.diagnostics !== undefined && typeof raw.diagnostics !== 'boolean') {
     throw new Error('diagnostics must be a boolean.');
   }
+  if (raw.desktopIcon !== undefined && typeof raw.desktopIcon !== 'boolean') {
+    throw new Error('desktopIcon must be a boolean.');
+  }
+  if (raw.desktopIcon !== false) installDesktopIcon(ctx);
   ctx.inject(['connection', 'sessionQuery'], installTokenActivityHost);
   if (raw.diagnostics === true) ctx.inject(['connection', 'webServer'], (child) => {
     child.effect(() => {

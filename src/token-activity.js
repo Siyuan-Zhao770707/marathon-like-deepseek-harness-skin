@@ -1,13 +1,15 @@
 const ACTIVITY_PREF = `${ID}:token-thresholds`;
+const ACTIVITY_COLLAPSED_PREF = `${ID}:token-calendar-collapsed`;
 const ACTIVITY_DICTIONARIES = {
-  zh: { 'activity.title':'TOKEN 活动', 'activity.today':'今日', 'activity.settings':'每日 token 界限', 'activity.description':'整个应用 · 所有会话的输入 + 输出 · 北京时间每日归零。每超过一个界限，切换一种调色盘颜色。', 'activity.limit':'界限', 'activity.invalid':'请输入三个递增的正整数。', 'activity.save':'保存界限', 'activity.reset':'恢复 100万 / 1000万 / 5000万', 'activity.loading':'正在读取用量…', 'activity.unavailable':'用量暂不可用', 'activity.stale':'连接中断 · 显示上次记录', 'activity.partial':'部分会话未能读取', 'activity.missing':'部分请求未报告用量', 'activity.input':'输入', 'activity.output':'输出', 'activity.total':'总量', 'activity.empty':'无已记录用量', 'activity.future':'尚未到来', 'activity.low':'低', 'activity.high':'高', 'activity.range':'最近 18 周 · 一格一天', 'activity.scope':'含缓存输入与推理输出，不重复叠加；仅统计应用记录的提供方用量。' },
-  en: { 'activity.title':'TOKEN ACTIVITY', 'activity.today':'Today', 'activity.settings':'Daily token thresholds', 'activity.description':'All application sessions · input + output · days reset at midnight Beijing time. Each exceeded threshold selects the next palette color.', 'activity.limit':'Threshold', 'activity.invalid':'Enter three increasing positive integers.', 'activity.save':'Save thresholds', 'activity.reset':'Reset 1M / 10M / 50M', 'activity.loading':'Reading usage…', 'activity.unavailable':'Usage unavailable', 'activity.stale':'Disconnected · last recorded usage', 'activity.partial':'Some sessions could not be read', 'activity.missing':'Some requests did not report usage', 'activity.input':'Input', 'activity.output':'Output', 'activity.total':'Total', 'activity.empty':'No recorded usage', 'activity.future':'Future day', 'activity.low':'Low', 'activity.high':'High', 'activity.range':'Last 18 weeks · one day per square', 'activity.scope':'Includes cached input and reasoning output without adding them twice. Counts provider usage recorded by the application.' }
+  zh: { 'activity.expand':'展开 token 日历', 'activity.collapse':'收起 token 日历', 'activity.title':'TOKEN 活动', 'activity.today':'今日', 'activity.settings':'每日 token 界限', 'activity.description':'整个应用 · 所有会话的输入 + 输出 · 北京时间每日归零。每超过一个界限，切换一种调色盘颜色。', 'activity.limit':'界限', 'activity.invalid':'请输入三个递增的正整数。', 'activity.save':'保存界限', 'activity.reset':'恢复 100万 / 1000万 / 5000万', 'activity.loading':'正在读取用量…', 'activity.unavailable':'用量暂不可用', 'activity.stale':'连接中断 · 显示上次记录', 'activity.partial':'部分会话未能读取', 'activity.missing':'部分请求未报告用量', 'activity.input':'输入', 'activity.output':'输出', 'activity.total':'总量', 'activity.empty':'无已记录用量', 'activity.future':'尚未到来', 'activity.low':'低', 'activity.high':'高', 'activity.range':'最近 18 周 · 一格一天', 'activity.scope':'含缓存输入与推理输出，不重复叠加；仅统计应用记录的提供方用量。' },
+  en: { 'activity.expand':'Expand token calendar', 'activity.collapse':'Collapse token calendar', 'activity.title':'TOKEN ACTIVITY', 'activity.today':'Today', 'activity.settings':'Daily token thresholds', 'activity.description':'All application sessions · input + output · days reset at midnight Beijing time. Each exceeded threshold selects the next palette color.', 'activity.limit':'Threshold', 'activity.invalid':'Enter three increasing positive integers.', 'activity.save':'Save thresholds', 'activity.reset':'Reset 1M / 10M / 50M', 'activity.loading':'Reading usage…', 'activity.unavailable':'Usage unavailable', 'activity.stale':'Disconnected · last recorded usage', 'activity.partial':'Some sessions could not be read', 'activity.missing':'Some requests did not report usage', 'activity.input':'Input', 'activity.output':'Output', 'activity.total':'Total', 'activity.empty':'No recorded usage', 'activity.future':'Future day', 'activity.low':'Low', 'activity.high':'High', 'activity.range':'Last 18 weeks · one day per square', 'activity.scope':'Includes cached input and reasoning output without adding them twice. Counts provider usage recorded by the application.' }
 };
 
 function createTokenActivityStore(ctx) {
-  let thresholds;
+  let thresholds, collapsed = false;
   try { thresholds = normalizeTokenThresholds(JSON.parse(localStorage.getItem(ACTIVITY_PREF))); } catch { thresholds = normalizeTokenThresholds(); }
-  let view = { thresholds, status: 'loading', data: null }, disposed = false, timer, controller, inFlight;
+  try { collapsed = localStorage.getItem(ACTIVITY_COLLAPSED_PREF) === 'true'; } catch {}
+  let view = { thresholds, collapsed, status: 'loading', data: null }, disposed = false, timer, controller, inFlight;
   const listeners = new Set();
   const publish = next => { if (disposed) return; view = { ...view, ...next }; for (const listener of listeners) listener(); };
   const read = async () => {
@@ -26,8 +28,12 @@ function createTokenActivityStore(ctx) {
     return inFlight;
   };
   const onStorage = event => {
-    if (event.key !== ACTIVITY_PREF && event.key !== null) return;
-    try { publish({ thresholds: normalizeTokenThresholds(JSON.parse(localStorage.getItem(ACTIVITY_PREF))) }); } catch {}
+    if (event.key === ACTIVITY_PREF || event.key === null) {
+      try { publish({ thresholds: normalizeTokenThresholds(JSON.parse(localStorage.getItem(ACTIVITY_PREF))) }); } catch {}
+    }
+    if (event.key === ACTIVITY_COLLAPSED_PREF || event.key === null) {
+      try { publish({ collapsed: localStorage.getItem(ACTIVITY_COLLAPSED_PREF) === 'true' }); } catch {}
+    }
   };
   const onVisible = () => { if (document.visibilityState !== 'hidden') read(); };
   ctx.effect(() => {
@@ -43,6 +49,11 @@ function createTokenActivityStore(ctx) {
       if (!validTokenThresholds(value)) return false;
       try { localStorage.setItem(ACTIVITY_PREF, JSON.stringify(value)); } catch {}
       publish({ thresholds: [...value] }); return true;
+    },
+    setCollapsed(value) {
+      const collapsed = value === true;
+      try { localStorage.setItem(ACTIVITY_COLLAPSED_PREF, String(collapsed)); } catch {}
+      publish({ collapsed });
     }
   };
 }
@@ -70,6 +81,7 @@ function TokenActivitySettings({ t, store, prefix = 'acid' }) {
 function TokenActivity({ wide, t, store, useAppearance }) {
   const state = React.useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot), appearance = useAppearance();
   const [settingsOpen, setSettingsOpen] = React.useState(false), [hovered, setHovered] = React.useState(null);
+  const calendarId = React.useId();
   const palette = appearance.palettes[appearance.mode], colors = [palette.surface, palette.text, palette.signal, palette.accent];
   const calendar = tokenActivityCalendar(), records = new Map(state.data?.days.map(day => [day.date, day]) ?? []);
   const days = calendar.map(day => ({ ...(records.get(day.date) ?? { input: 0, output: 0, missingUsage: 0 }), ...day }));
@@ -78,19 +90,23 @@ function TokenActivity({ wide, t, store, useAppearance }) {
   const total = available ? compactTokens(today.input + today.output) : '—';
   const warning = ['loading','unavailable','partial','stale'].includes(state.status) ? t(`activity.${state.status}`) : today.missingUsage ? t('activity.missing') : null;
   const months = days.filter((day, i) => i % 7 === 0).map((day, i, all) => i === 0 || day.date.slice(0, 7) !== all[i - 1].date.slice(0, 7) ? `${Number(day.date.slice(5, 7))}月` : '');
-  return h('section', { className: `acid-token-activity${wide ? '' : ' acid-token-rail'}`, 'aria-label': t('activity.title'), 'data-token-status': state.status,
+  return h('section', { className: `acid-token-activity${wide ? '' : ' acid-token-rail'}`, 'aria-label': t('activity.title'), 'data-token-status': state.status, 'data-token-collapsed': state.collapsed,
     style: Object.fromEntries(colors.map((color, i) => [`--acid-token-color-${i + 1}`, color])) },
-    wide ? h('div', { className: 'acid-token-heading' }, h('span', null, t('activity.title')), h('strong', { title: dayLabel(today) }, `${t('activity.today')} ${total}`),
+    wide ? h('div', { className: 'acid-token-heading' },
+      h('button', { type: 'button', className: 'acid-token-toggle', 'aria-label': t(state.collapsed ? 'activity.expand' : 'activity.collapse'),
+        'aria-expanded': !state.collapsed, 'aria-controls': calendarId, title: warning ?? dayLabel(today), onClick: () => { setHovered(null); store.setCollapsed(!state.collapsed); } },
+        h('span', { className: 'acid-token-chevron', 'aria-hidden': true }, '›'), h('span', null, t('activity.title')), h('strong', null, `${t('activity.today')} ${total}`)),
       h('button', { type: 'button', className: 'acid-token-config', 'aria-label': t('activity.settings'), title: t('activity.settings'), onClick: () => setSettingsOpen(true) }, '⚙')) :
       h('button', { type: 'button', className: 'acid-token-rail-button', title: `${t('activity.today')} ${total} token`, 'aria-label': `${t('activity.settings')} · ${t('activity.today')} ${total} token`, onClick: () => setSettingsOpen(true) }, h('span', { 'data-token-level': available ? tokenActivityLevel(today.input + today.output, state.thresholds) : 0 }), h('small', null, total)),
-    wide ? h('div', { className: 'acid-token-chart', onMouseLeave: () => setHovered(null) },
+    wide ? h('div', { id: calendarId, className: 'acid-token-calendar', hidden: state.collapsed },
+      h('div', { className: 'acid-token-chart', onMouseLeave: () => setHovered(null) },
       h('div', { className: 'acid-token-months', 'aria-hidden': true }, ...months.map((month, i) => h('span', { key: i }, month))),
       h('div', { className: 'acid-token-grid', role: 'group', 'aria-label': t('activity.range') }, ...days.map(day => h('button', { key: day.date, type: 'button', className: 'acid-token-cell', 'data-token-date': day.date,
         'data-token-level': available ? tokenActivityLevel(day.input + day.output, state.thresholds) : 0, 'data-token-today': day.today, 'data-token-future': day.future,
         'aria-label': dayLabel(day), title: dayLabel(day), disabled: day.future, onMouseEnter: () => setHovered(day), onFocus: () => setHovered(day), onBlur: () => setHovered(null), onClick: () => setHovered(day) }))),
-      hovered ? h('div', { className: 'acid-token-tooltip', role: 'tooltip' }, h('strong', null, hovered.date),
+      hovered && !state.collapsed ? h('div', { className: 'acid-token-tooltip', role: 'tooltip' }, h('strong', null, hovered.date),
         h('span', null, !available ? t('activity.unavailable') : `${t('activity.input')} ${hovered.input.toLocaleString()} · ${t('activity.output')} ${hovered.output.toLocaleString()}`),
-        h('b', null, available ? `${(hovered.input + hovered.output).toLocaleString()} token` : '—'), hovered.missingUsage ? h('span', null, t('activity.missing')) : null) : null) : null,
-    wide ? h('div', { className: 'acid-token-legend', title: t('activity.description') }, h('span', null, warning ?? `${t('activity.range')}`), h('span', { className: 'acid-token-scale' }, t('activity.low'), ...colors.map((color, i) => h('i', { key: i, style: { background: color }, title: `${tokenActivityRange(i + 1, state.thresholds)} token` })), t('activity.high'))) : null,
+        h('b', null, available ? `${(hovered.input + hovered.output).toLocaleString()} token` : '—'), hovered.missingUsage ? h('span', null, t('activity.missing')) : null) : null),
+      h('div', { className: 'acid-token-legend', title: t('activity.description') }, h('span', null, warning ?? `${t('activity.range')}`), h('span', { className: 'acid-token-scale' }, t('activity.low'), ...colors.map((color, i) => h('i', { key: i, style: { background: color }, title: `${tokenActivityRange(i + 1, state.thresholds)} token` })), t('activity.high')))) : null,
     settingsOpen ? h(NativeDialog, { title: t('activity.settings'), onClose: () => setSettingsOpen(false), className: 'acid-token-dialog' }, h(TokenActivitySettings, { t, store, prefix: 'acid-token-dialog' })) : null);
 }

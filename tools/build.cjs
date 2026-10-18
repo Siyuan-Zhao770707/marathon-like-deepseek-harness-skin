@@ -19,5 +19,5 @@ const source = fs.readFileSync(path.join(root, 'src/client.js'), 'utf8')
   .replace('"__MASTHEAD_SVG__"', JSON.stringify(svg));
 fs.mkdirSync(path.join(root, 'lib'), { recursive: true });
 fs.writeFileSync(path.join(root, 'lib/client.js'), source);
-for (const name of ['token-activity-core.js', 'token-activity-host.js']) fs.copyFileSync(path.join(root, 'src', name), path.join(root, 'lib', name));
+for (const name of ['token-activity-core.js', 'token-activity-host.js', 'desktop-icon-host.js', 'desktop-icon.ps1']) fs.copyFileSync(path.join(root, 'src', name), path.join(root, 'lib', name));
 console.log(JSON.stringify({ clientBytes: Buffer.byteLength(source), fontsEmbedded: 2, harnessLetters: [...svg.matchAll(/data-harness-letter="([A-Z])"/g)].map(x => x[1]).join('') }));

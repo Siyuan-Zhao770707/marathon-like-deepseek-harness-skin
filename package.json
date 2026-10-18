@@ -1,6 +1,6 @@
 {
   "name": "dsh-industrial-acid-skin",
-  "version": "2.4.0",
+  "version": "2.4.2",
   "description": "Marathon-inspired industrial DeepSeek Harness skin with four-color daily token activity, adjustable thresholds, palette-driven motion, and random Max effects.",
   "repository": {
     "type": "git",
@@ -11,7 +11,8 @@
     "url": "https://github.com/yasneg616/marathon-like-deepseek-harness-skin/issues"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22",
+    "dsh": ">=0.2.0-rc.2 <0.2.2-0"
   },
   "type": "module",
   "main": "index.js",
@@ -44,7 +45,7 @@
     }
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh-client-ui-theme": "0.2.0-rc.2"
+    "@deepseek-ai/dsh-client-ui-theme": ">=0.2.0-rc.2 <0.2.2-0"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/dsh-client-ui-theme": {
@@ -63,7 +64,7 @@
   "icon": "assets/icon.svg",
   "scripts": {
     "build": "node tools/build.cjs",
-    "check": "node --check index.js && node --check lib/client.js && node --check lib/token-activity-host.js && node --check lib/token-activity-core.js",
+    "check": "node --check index.js && node --check lib/client.js && node --check lib/token-activity-host.js && node --check lib/token-activity-core.js && node --check lib/desktop-icon-host.js",
     "test": "node --test tests/*.test.cjs"
   },
   "license": "MIT"
