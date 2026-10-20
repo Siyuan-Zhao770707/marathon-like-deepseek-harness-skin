@@ -7,6 +7,11 @@ function compactRailColumns(columns) {
   const right=nativeRightTrack(columns);
   return `56px minmax(0px, 1fr) minmax(0px, min(${right}px, max(0px, calc(100% - 456px))))`;
 }
+const NEXT_SIDEBAR_WIDTH=113;
+function nextSidebarColumns(columns) {
+  const right=nativeRightTrack(columns);
+  return `${NEXT_SIDEBAR_WIDTH}px minmax(0px, 1fr) minmax(0px, min(${right}px, max(0px, calc(100% - ${NEXT_SIDEBAR_WIDTH+400}px))))`;
+}
 function surfaceUnion(before,after,top=0) {
   const left=Math.min(before.left,after.left),right=Math.max(before.left+before.width,after.left+after.width);
   const y=Math.max(top,Math.min(before.top,after.top)),bottom=Math.max(before.top+before.height,after.top+after.height);
@@ -123,8 +128,9 @@ function createAcceptedMotionController(getMotion) {
     record.captured=undefined;
   }
   function syncCompactRail(frame) {
-    if(!document.documentElement?.hasAttribute('data-windows-titlebar'))return;
-    const properties={'--acid-rail-columns':compactRailColumns(frame.style.gridTemplateColumns),'--acid-rail-right-width':nativeRightTrack(frame.style.gridTemplateColumns)+'px'};
+    // NEXT: the narrow strip sidebar keeps the native right panel track.
+    const properties={'--acid-next-columns':nextSidebarColumns(frame.style.gridTemplateColumns)};
+    if(document.documentElement?.hasAttribute('data-windows-titlebar')){properties['--acid-rail-columns']=compactRailColumns(frame.style.gridTemplateColumns);properties['--acid-rail-right-width']=nativeRightTrack(frame.style.gridTemplateColumns)+'px';}
     if(!railFrames.has(frame))railFrames.set(frame,Object.keys(properties).map(name=>({name,value:frame.style.getPropertyValue(name),priority:frame.style.getPropertyPriority(name)})));
     for(const[name,value]of Object.entries(properties))if(frame.style.getPropertyValue(name)!==value)frame.style.setProperty(name,value);
   }

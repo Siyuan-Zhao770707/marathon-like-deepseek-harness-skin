@@ -2,9 +2,12 @@
 // Native rows stay mounted and own every action; this layer only arranges
 // them and proxies clicks, so ordering, menus and drag reorder stay native.
 const IDENTITY_PREF=`${ID}:workspace-identity`;
-const IDENTITY_COLORS=Object.freeze(['#C8FF00','#FF2BD6','#FF6A13','#2F5BFF','#00E1FF','#FFE600','#FF2D4F','#8B5CFF','#00F5A0','#FF9F1C']);
+// Approved v3 order: slot k keeps its persisted index, so existing workspaces
+// are re-mapped onto this palette by the slot they were already given.
+const IDENTITY_COLORS=Object.freeze(['#C6F500','#FF2D78','#FF6A1A','#2B45FF','#9B4DFF','#00D1E0','#FFE600','#00F5A0','#FF9F1C','#FF4FD8']);
 function assignIdentity(state,ids){
   const next={next:Number.isSafeInteger(state?.next)&&state.next>=0?state.next:0,map:{...(state&&typeof state.map==='object'?state.map:{})}};
+  if(state?.v)next.v=state.v;
   let changed=false;
   for(const id of ids){
     const current=next.map[id];
@@ -14,12 +17,25 @@ function assignIdentity(state,ids){
   return {state:next,changed};
 }
 function loadIdentity(){try{return JSON.parse(localStorage.getItem(IDENTITY_PREF))||{};}catch{return {};}}
-function workspaceIdentity(ids){
-  const {state,changed}=assignIdentity(loadIdentity(),ids);
+// v3 palette: one-time re-map of existing workspaces onto the approved order
+// by their workspace number (001 lime, 002 pink, ...). After that the colour
+// is persisted per workspace again and new workspaces take the next slot.
+const IDENTITY_VERSION=3;
+function migrateIdentity(state,ids,numbers){
+  if(state?.v===IDENTITY_VERSION||!ids.length||!numbers||!ids.every(id=>numbers[id]))return {state,migrated:false};
+  const ordered=[...ids].sort((a,b)=>numbers[a]-numbers[b]);
+  const fresh=assignIdentity({next:0,map:{}},ordered).state;fresh.v=IDENTITY_VERSION;
+  return {state:fresh,migrated:true};
+}
+function workspaceIdentity(ids,numbers){
+  const migration=migrateIdentity(loadIdentity(),ids,numbers);
+  const result=assignIdentity(migration.state,ids),state=result.state,changed=result.changed||migration.migrated;
   if(changed)try{localStorage.setItem(IDENTITY_PREF,JSON.stringify(state));}catch{}
   return Object.fromEntries(ids.map(id=>[id,IDENTITY_COLORS[state.map[id]]]));
 }
-function identityInk(hex){return foreground(hex);}
+// Strips always carry dark ink: the approved sheet uses dark type on every colour.
+const STRIP_INK='#0B0C0D';
+function identityInk(){return STRIP_INK;}
 // Stable, append-style numbering. The skin keeps its own ordered list of
 // workspace ids: the first run adopts the native order (so nothing visibly
 // renumbers), new workspaces are appended (number = count + 1), deleted ones
@@ -66,11 +82,11 @@ function moveWorkspace(id,beforeId){
   saveWorkspaceOrder(order);return order;
 }
 
-// Placement on a half-strip grid: 001 is the lead strip beside the command
-// stack, then each workspace alternates column one half-step lower.
+// Placement on a half-strip grid (one row = half a strip): 001 starts the
+// left column, the command block fills the first half-row on the right, so
+// 002 sits exactly half a strip lower and the columns interlock.
 function stripPlacement(index){
-  if(index===0)return {column:1,row:1,span:4,lead:true};
-  return {column:index%2===1?2:1,row:index+3,span:2,lead:false};
+  return {column:index%2+1,row:index+1,span:2,lead:index===0};
 }
 
 function nextSidebarList(){
@@ -89,14 +105,32 @@ function sessionRows(group){
   }));
 }
 
+const COMMAND_ICONS={
+  new:'M8 3v10M3 8h10',
+  plugins:'M3 5.5h2.6a1.6 1.6 0 1 1 3.2 0H11.5V8a1.6 1.6 0 1 1 0 3.2V13.5H8.8a1.6 1.6 0 1 0-3.2 0H3V10.8a1.6 1.6 0 1 0 0-3.2Z',
+  automations:'M8 2.5a5.5 5.5 0 1 0 0 11a5.5 5.5 0 1 0 0-11ZM8 5v3.2l2.2 1.4'
+};
 function CommandStack({tick}){
   const commands=nativeCommands();
-  const glyphs=['+','▦','◷'];
   return h('div',{className:'acid-ws-commands',role:'group','aria-label':'commands','data-tick':tick},...commands.map((button,i)=>{
-    const label=button.querySelector('._2H3hWW_newSessionLabel,._2H3hWW_panelTitle')?.textContent||button.getAttribute('aria-label')||'';
+    const kind=['new','plugins','automations'][i];
+    const label=button.querySelector('._2H3hWW_newSessionLabel,._2H3hWW_panelTitle')?.textContent||button.getAttribute('aria-label')||kind;
     const active=button.classList.contains('_2H3hWW_panelActive');
-    return h('button',{key:i,type:'button',className:'acid-ws-command','data-command':['new','plugins','automations'][i],'aria-pressed':i?active:undefined,'aria-label':button.getAttribute('aria-label')||label,
-      onClick:()=>{button.click();}},h('i',{'aria-hidden':true},glyphs[i]),h('span',null,label),h('b',{'aria-hidden':true},String(i+1).padStart(2,'0')));
+    return h('button',{key:i,type:'button',className:'acid-ws-command','data-command':kind,'aria-pressed':i?active:undefined,'aria-label':label,title:label,
+      onClick:()=>{button.click();}},h('svg',{width:16,height:16,viewBox:'0 0 16 16',fill:'none',stroke:'currentColor',strokeWidth:1.3,strokeLinecap:'square','aria-hidden':true},h('path',{d:COMMAND_ICONS[kind]})));
+  }));
+}
+// Workspace-list tools (search, view options, add workspace) do not fit the
+// 113px rail; they are proxied from the MORE drawer. Natives stay mounted.
+function DrawerTools(){
+  const [,force]=React.useState(0);
+  React.useEffect(()=>{const id=setTimeout(()=>force(x=>x+1),400);return()=>clearTimeout(id);},[]);
+  const buttons=[...document.querySelectorAll('.BynINW_frame [data-slot="sidebar.workspaces"] ._9lTDKa_sectionHeader button')];
+  if(!buttons.length)return null;
+  return h('div',{className:'acid-drawer-tools',role:'group'},...buttons.map((button,i)=>{
+    const label=button.getAttribute('aria-label')||'';
+    return h('button',{key:i,type:'button',className:'acid-drawer-tool','aria-label':label,title:label,onClick:()=>button.click()},
+      h('span',{className:'acid-drawer-tool-icon','aria-hidden':true,dangerouslySetInnerHTML:{__html:button.querySelector('svg')?.outerHTML||''}}),h('span',null,label));
   }));
 }
 
@@ -111,7 +145,7 @@ function WorkspaceFlyout({state,t,onEnter,onLeave,onClose,motion}){
   },[state.group]);
   // Reuse the skin's own four-colour wipe, sideways like the sidebar itself.
   React.useLayoutEffect(()=>{if(ref.current)activeAcceptedMotion?.mask(ref.current,{kind:'hover',direction:'left-right'});},[]);
-  const place=state.anchor,below=place.top+340>window.innerHeight;
+  const place=state.anchor,below=place.top+380>window.innerHeight;
   const style={left:place.left+'px','--acid-ws-id':state.color,'--acid-ws-id-fore':identityInk(state.color)};
   if(below)style.bottom=Math.max(8,window.innerHeight-place.bottom)+'px';else style.top=Math.max(8,place.top)+'px';
   const create=state.group.querySelector('.hIlkoa_projectRow .hIlkoa_rowActions button[aria-keyshortcuts]');
@@ -119,13 +153,13 @@ function WorkspaceFlyout({state,t,onEnter,onLeave,onClose,motion}){
   return createPortal(h('aside',{ref,className:'acid-ws-flyout','data-acid-motion-owned':'flyout','data-placement':below?'up':'down',style,role:'dialog','aria-label':`${state.number} ${state.name}`,onPointerEnter:onEnter,onPointerLeave:onLeave,onKeyDown:event=>{if(event.key==='Escape'){event.stopPropagation();onClose(true);}}},
     h('header',{className:'acid-ws-fly-head'},
       h('span',{className:'acid-ws-fly-number'},state.number),
-      h('span',{className:'acid-ws-fly-title'},h('small',null,'WORKSPACE // ID-'+state.number),h('strong',null,state.name),state.path?h('em',{title:state.path},state.path):null),
-      create?h('button',{type:'button',className:'acid-ws-fly-new','aria-label':create.getAttribute('aria-label'),title:create.getAttribute('aria-label'),onClick:()=>{motion()?.captureStage();create.click();onClose();}},'+'):null),
-    h('div',{className:'acid-ws-fly-meta','aria-hidden':true},h('span',null,`SESSIONS ${String(rows.length).padStart(2,'0')}`),h('i',{className:'acid-ws-fly-stripes'})),
-    rows.length?h('div',{className:'acid-ws-fly-list',role:'list'},...rows.map((entry,i)=>h('button',{key:entry.key,type:'button',role:'listitem',className:'acid-ws-fly-row','aria-current':entry.selected?'true':undefined,
+      h('span',{className:'acid-ws-fly-title'},h('strong',null,state.name),state.path?h('em',{title:state.path},state.path):null)),
+    h('div',{className:'acid-ws-fly-meta'},h('span',null,`CONVERSATIONS ${String(rows.length).padStart(2,'0')}`),
+      create?h('button',{type:'button',className:'acid-ws-fly-new','aria-label':create.getAttribute('aria-label'),title:create.getAttribute('aria-label'),onClick:()=>{motion()?.captureStage();create.click();onClose();}},h('b',{'aria-hidden':true},'+'),'NEW CHAT HERE'):null),
+    rows.length?h('div',{className:'acid-ws-fly-list',role:'list'},...rows.map(entry=>h('button',{key:entry.key,type:'button',role:'listitem',className:'acid-ws-fly-row','aria-current':entry.selected?'true':undefined,
       onClick:()=>open(entry),onContextMenu:event=>{event.preventDefault();entry.row.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:event.clientX,clientY:event.clientY,button:2}));}},
-      h('span',{className:'acid-ws-fly-index','aria-hidden':true},String(i+1).padStart(2,'0')),h('span',{className:'acid-ws-fly-name'},entry.title),entry.time?h('span',{className:'acid-ws-fly-time'},entry.time):null))):
-      h('p',{className:'acid-ws-fly-empty'},'NO SESSIONS // —')),document.body);
+      h('span',{className:'acid-ws-fly-name'},entry.title),entry.time?h('span',{className:'acid-ws-fly-time'},entry.time):null))):
+      h('p',{className:'acid-ws-fly-empty'},'NO CONVERSATIONS // —')),document.body);
 }
 
 function SidebarNext({items,numbers,workspaceId,onPick,t,motion,toggleSidebar}){
@@ -133,7 +167,7 @@ function SidebarNext({items,numbers,workspaceId,onPick,t,motion,toggleSidebar}){
   const timers=React.useRef({}),flyRef=React.useRef(null),expanded=React.useRef(new Set());
   flyRef.current=fly;
   const ids=items.map(item=>String(item.workspaceId));
-  const identity=React.useMemo(()=>workspaceIdentity(ids),[ids.join('|')]);
+  const identity=React.useMemo(()=>workspaceIdentity(ids,numbers),[ids.join('|'),JSON.stringify(numbers||{})]);
   const byId=React.useMemo(()=>new Map(items.map((item,i)=>[String(item.workspaceId),{item,index:i}])),[items]);
   const live=React.useRef({});live.current={identity,byId,onPick,workspaceId,numbers};
   // Locate the native workspace tree in the main frame.

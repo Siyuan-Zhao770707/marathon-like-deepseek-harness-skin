@@ -19,15 +19,16 @@ test('identity colours are assigned once per workspace and stay stable',()=>{
   const repaired=assignIdentity({next:2,map:{bad:'no',big:99}},['bad','big']);
   assert.equal(repaired.state.map.bad,2);assert.equal(repaired.state.map.big,3);
 });
-test('strips alternate columns half a step apart beside the command stack',()=>{
-  const {stripPlacement}=load();
-  assert.deepEqual({...stripPlacement(0)},{column:1,row:1,span:4,lead:true});
-  const rest=[1,2,3,4,5].map(i=>({...stripPlacement(i)}));
-  assert.deepEqual(rest.map(p=>p.column),[2,1,2,1,2]);
-  assert.deepEqual(rest.map(p=>p.row),[4,5,6,7,8]);
-  // the second strip overlaps the lead's last row, and columns never collide
-  assert.ok(rest[0].row<=1+4-1);
-  for(let i=2;i<rest.length;i++)assert.ok(rest[i].row>=rest[i-2].row+rest[i-2].span);
+test('strips interlock: equal strips alternate columns, right column offset half a strip',()=>{
+  const {stripPlacement,IDENTITY_COLORS}=load();
+  const all=[0,1,2,3,4,5].map(i=>({...stripPlacement(i)}));
+  assert.deepEqual(all.map(p=>p.column),[1,2,1,2,1,2]);
+  assert.deepEqual(all.map(p=>p.row),[1,2,3,4,5,6]);
+  assert.ok(all.every(p=>p.span===2));
+  // same column never collides; the command block owns column 2, row 1
+  for(let i=2;i<all.length;i++)assert.equal(all[i].row,all[i-2].row+all[i-2].span);
+  assert.equal(all[1].row,2);
+  assert.deepEqual([...IDENTITY_COLORS.slice(0,6)],['#C6F500','#FF2D78','#FF6A1A','#2B45FF','#9B4DFF','#00D1E0']);
 });
 function loadNumbering(){
   let api;const store={};
@@ -64,4 +65,12 @@ test('workspaceNumbers persists order and only adopts permutations after a reord
   assert.deepEqual({...api.workspaceNumbers(items(['b','n','a']))},{b:1,n:2,a:3});
   assert.deepEqual([...api.moveInOrder(['a','b','c'],'c','a')],['c','a','b']);
   assert.deepEqual([...api.moveInOrder(['a','b','c'],'a',null)],['b','c','a']);
+});
+test('v3 palette migration re-maps existing workspaces by number once, then stays persisted',()=>{
+  const {api}=loadNumbering();
+  const old={next:3,map:{a:1,b:0,c:2}};
+  const m=api.migrateIdentity(old,['a','b','c'],{c:1,a:2,b:3});
+  assert.equal(m.migrated,true);assert.deepEqual({...m.state.map},{c:0,a:1,b:2});assert.equal(m.state.v,3);
+  assert.equal(api.migrateIdentity(m.state,['a','b','c'],{a:1,b:2,c:3}).migrated,false);
+  assert.equal(api.migrateIdentity(old,[],{}).migrated,false);
 });

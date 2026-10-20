@@ -150,10 +150,10 @@ window.__ModuleLoader__.load({
         const dialog=paletteOpen?h(NativeDialog,{title:t('palette'),onClose:()=>setPaletteOpen(false)},h(CanvasRow,{t,prefix:'acid-dialog'})):null;
         if(!wide)return h('div', { className: 'acid-footer' }, h(TokenActivity, { wide, t, store: activityStore, useAppearance }),modes,palette,dialog);
         return h('div', { className: 'acid-footer' }, h(TokenActivity, { wide, t, store: activityStore, useAppearance }),
-          h('div',{ref:drawer,className:'acid-drawer'},
-            h('button',{type:'button',className:'acid-drawer-handle','aria-expanded':pinned,'aria-controls':bodyId,onClick:()=>setPinned(value=>!value)},
-              h('span',{className:'acid-drawer-badge','aria-hidden':true},'SYS'),h('span',{className:'acid-drawer-label'},`${t('canvas')} / ${t('palette')}`),h('i',{className:'acid-drawer-stripes','aria-hidden':true}),h('span',{className:'acid-drawer-chevron','aria-hidden':true},'▴')),
-            h('div',{id:bodyId,className:'acid-drawer-body'},modes,palette)),dialog);
+          h('div',{ref:drawer,className:'acid-drawer',onKeyDown:event=>{if(event.key==='Escape'){setPinned(false);event.currentTarget.querySelector('.acid-drawer-handle')?.focus();}}},
+            h('button',{type:'button',className:'acid-drawer-handle','aria-label':`MORE — ${t('canvas')} / ${t('palette')}`,'aria-expanded':pinned,'aria-controls':bodyId,onClick:()=>setPinned(value=>!value)},
+              h('span',{className:'acid-drawer-label'},'MORE',h('span',{className:'acid-drawer-chevron','aria-hidden':true},'⌃'))),
+            h('div',{id:bodyId,className:'acid-drawer-body'},h(DrawerTools),modes,palette)),dialog);
       }
       function ColorField({ field, value, t, onColor, prefix='acid' }) {
         const [draft, setDraft] = React.useState(value);
@@ -197,6 +197,6 @@ window.__ModuleLoader__.load({
       installModelControls(ctx, useAppearance);
     }
 
-    return { inject: ['slots', 'locale', 'theme', 'layout', 'uiWorkspace', 'connection'], apply, tokenOverrides, workspaceContext, formatWorkspaceIndex, normalizePalettes, normalizeCanvas, resolveMode, makeScheme, contrast, DEFAULT_PALETTES, PALETTE_PRESETS, modelControlSnapshot, effortSelection, modelPopoverPlacement, effortVisual, selectionIdentity, createMaxEpisode, acceptedDuration, ACCEPTED_MOTION, rankWorkspaces, moveInOrder, workspaceNumbers, markWorkspaceReorder };
+    return { inject: ['slots', 'locale', 'theme', 'layout', 'uiWorkspace', 'connection'], apply, tokenOverrides, workspaceContext, formatWorkspaceIndex, normalizePalettes, normalizeCanvas, resolveMode, makeScheme, contrast, DEFAULT_PALETTES, PALETTE_PRESETS, modelControlSnapshot, effortSelection, modelPopoverPlacement, effortVisual, selectionIdentity, createMaxEpisode, acceptedDuration, ACCEPTED_MOTION, rankWorkspaces, moveInOrder, workspaceNumbers, markWorkspaceReorder, migrateIdentity };
   }
 });
