@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const font = name => fs.readFileSync(path.join(root, 'assets/fonts', name)).toString('base64');
-const css = (fs.readFileSync(path.join(root, 'src/skin.css'), 'utf8') + '\n' + fs.readFileSync(path.join(root,'src/planar.css'),'utf8') + '\n' + fs.readFileSync(path.join(root,'src/model-controls.css'),'utf8') + '\n' + fs.readFileSync(path.join(root,'src/accepted-motion.css'),'utf8'))
+const css = (fs.readFileSync(path.join(root, 'src/skin.css'), 'utf8') + '\n' + fs.readFileSync(path.join(root,'src/planar.css'),'utf8') + '\n' + fs.readFileSync(path.join(root,'src/model-controls.css'),'utf8') + '\n' + fs.readFileSync(path.join(root,'src/accepted-motion.css'),'utf8') + '\n' + fs.readFileSync(path.join(root,'src/sidebar-next.css'),'utf8'))
   .concat('\n', fs.readFileSync(path.join(root, 'src/token-activity.css'), 'utf8'))
   .replaceAll('__GRID_WOFF2__', font('eventide-grid.woff2'))
   .replaceAll('__SIGNAL_WOFF2__', font('eventide-signal.woff2'));
@@ -11,6 +11,7 @@ const source = fs.readFileSync(path.join(root, 'src/client.js'), 'utf8')
   .replace('/*__WORKSPACE_CORE__*/', fs.readFileSync(path.join(root,'src/workspaces.js'),'utf8'))
   .replace('/*__MOTION_CORE__*/', fs.readFileSync(path.join(root,'src/accepted-motion.js'),'utf8') + '\n' + fs.readFileSync(path.join(root,'src/motion.js'),'utf8'))
   .replace('/*__SHELL_CORE__*/', fs.readFileSync(path.join(root,'src/shell.js'),'utf8'))
+  .replace('/*__SIDEBAR_CORE__*/', fs.readFileSync(path.join(root,'src/sidebar-next.js'),'utf8'))
   .replace('/*__MODEL_CORE__*/', fs.readFileSync(path.join(root,'src/max-berserk.js'),'utf8') + '\n' + fs.readFileSync(path.join(root,'src/model-controls.js'),'utf8'))
   .replace('"__SYMBOL_SVG__"',JSON.stringify(fs.readFileSync(path.join(root,'assets/symbol.svg'),'utf8').replace(/^<svg[^>]*>|<\/svg>$/g,'')))
   .replace('/*__PALETTE_CORE__*/', fs.readFileSync(path.join(root, 'src/palette.js'), 'utf8'))

@@ -64,14 +64,17 @@ function Masthead(props){
   const windowAction=action=>native.invoke(action).then(state=>setNativeState(state)).catch(()=>{});
   const openMenu=(name,event)=>{const rect=event.currentTarget.getBoundingClientRect();native.menu(name,rect.left,rect.bottom).catch(()=>{});};
   return h(React.Fragment,null,h('header',{className:'acid-masthead','data-native-controls':native?'true':'false','aria-label':'DeepSeek Harness'},
-    h('div',{className:'acid-wordmark'},h('button',{type:'button',className:'acid-sidebar-toggle','aria-label':'展开／收起左侧栏',onClick:props.toggleSidebar},h('svg',{viewBox:'0 0 20 20','aria-hidden':true},h('path',{d:'M3 3h14v14H3ZM8 3v14'}))),
-      h('button',{type:'button',className:'acid-brand-home','aria-label':'DeepSeek Harness',onClick:props.goHome},h(SkinSymbol,{className:'acid-brand-symbol'}),h('span',{className:'acid-wordmark-svg',dangerouslySetInnerHTML:{__html:MASTHEAD}}))),
+    h('div',{className:'acid-wordmark'},h('button',{type:'button',className:'acid-brand-home','aria-label':'DeepSeek Harness',onClick:props.goHome},h(SkinSymbol,{className:'acid-brand-symbol'}),h('span',{className:'acid-wordmark-svg',dangerouslySetInnerHTML:{__html:MASTHEAD}}))),
     native?h('div',{className:'acid-menus'},h('button',{type:'button',onClick:event=>openMenu('application',event)},h('span',{'aria-hidden':true},'01'),document.documentElement.lang.startsWith('zh')?'应用':'Application'),h('button',{type:'button',onClick:event=>openMenu('edit',event)},h('span',{'aria-hidden':true},'02'),document.documentElement.lang.startsWith('zh')?'编辑':'Edit')):null,
     h('button',{ref:context,type:'button',className:'acid-context workspace-display',onClick:()=>setPicker(true),disabled:items.length===0,'aria-label':props.t('workspace')},
       h('span',{className:'workspace-counter'},h('strong',{className:'acid-context-number workspace-index',id:'workspace-index'},'—')),
       h('span',{className:'workspace-detail'},h('span',{className:'acid-meta'},'ACTIVE WORKSPACE'),h('span',{className:'workspace-name-slot'},h('span',{className:'acid-context-title',id:'workspace-name',title:workspace?.title},props.t('none')))),h('span',{className:'acid-workspace-arrow','aria-hidden':true},'↗')),
     native?h('div',{className:'acid-window-controls'},h('button',{type:'button','aria-label':'最小化',title:'最小化',onClick:()=>windowAction('minimize')},'−'),h('button',{type:'button','aria-label':nativeState?.maximized?'还原':'最大化',title:nativeState?.maximized?'还原':'最大化',onClick:()=>windowAction('maximize')},nativeState?.maximized?'▣':'□'),h('button',{type:'button','aria-label':'关闭',title:'关闭',onClick:()=>windowAction('close')},'×')):null),
     h(WorkspaceRail,{items,workspaceId:workspace?.workspaceId,t:props.t,onPick:id=>{
+      if(id===workspace?.workspaceId){props.goHome();return;}
+      props.motion()?.captureStage();props.pickWorkspace(id);
+    }}),
+    h(SidebarNext,{items,workspaceId:workspace?.workspaceId,t:props.t,motion:props.motion,toggleSidebar:props.toggleSidebar,onPick:id=>{
       if(id===workspace?.workspaceId){props.goHome();return;}
       props.motion()?.captureStage();props.pickWorkspace(id);
     }}),

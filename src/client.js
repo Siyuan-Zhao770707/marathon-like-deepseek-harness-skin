@@ -11,6 +11,7 @@ window.__ModuleLoader__.load({
     /*__WORKSPACE_CORE__*/
     /*__MOTION_CORE__*/
     /*__SHELL_CORE__*/
+    /*__SIDEBAR_CORE__*/
     /*__MODEL_CORE__*/
     const PREF = `${ID}:canvas`;
     const PALETTE_PREF = `${ID}:palettes`;
@@ -140,11 +141,19 @@ window.__ModuleLoader__.load({
       }
       function AppearanceFooter({ wide, t }) {
         const state = useAppearance();const [paletteOpen,setPaletteOpen]=React.useState(false);
+        const [pinned,setPinned]=React.useState(false),drawer=React.useRef(null),bodyId=React.useId();
+        // NEXT: palette, day/night and the native "More" live in a bottom drawer.
+        React.useLayoutEffect(()=>{const area=drawer.current?.closest('._2H3hWW_footArea');if(!area)return;area.setAttribute('data-acid-drawer',pinned?'open':'closed');return()=>area.removeAttribute('data-acid-drawer');},[pinned,wide]);
+        const modes=h('div', { className: `acid-mode-switch${wide ? '' : ' acid-mode-switch-rail'}`, role: 'group', 'aria-label': t('canvas') },
+            ...['paper', 'night', 'adaptive'].map(value => h('button', { key: value, type: 'button', 'data-appearance-option': value, title: t(value), 'aria-label': t(value), 'aria-pressed': state.canvas === value, onClick: () => updateAppearance({ canvas: value }) }, h(ModeIcon, { value }), wide ? h('span', null, t(value)) : null)));
+        const palette=h('button',{type:'button',className:'acid-palette-shortcut',onClick:()=>setPaletteOpen(true),'aria-label':t('palette')},h('span',{className:'acid-palette-swatch','aria-hidden':true}),wide?t('palette'):null,wide?h('span',{'aria-hidden':true},'↗'):null);
+        const dialog=paletteOpen?h(NativeDialog,{title:t('palette'),onClose:()=>setPaletteOpen(false)},h(CanvasRow,{t,prefix:'acid-dialog'})):null;
+        if(!wide)return h('div', { className: 'acid-footer' }, h(TokenActivity, { wide, t, store: activityStore, useAppearance }),modes,palette,dialog);
         return h('div', { className: 'acid-footer' }, h(TokenActivity, { wide, t, store: activityStore, useAppearance }),
-          h('div', { className: `acid-mode-switch${wide ? '' : ' acid-mode-switch-rail'}`, role: 'group', 'aria-label': t('canvas') },
-            ...['paper', 'night', 'adaptive'].map(value => h('button', { key: value, type: 'button', 'data-appearance-option': value, title: t(value), 'aria-label': t(value), 'aria-pressed': state.canvas === value, onClick: () => updateAppearance({ canvas: value }) }, h(ModeIcon, { value }), wide ? h('span', null, t(value)) : null))),
-          h('button',{type:'button',className:'acid-palette-shortcut',onClick:()=>setPaletteOpen(true),'aria-label':t('palette')},h('span',{className:'acid-palette-swatch','aria-hidden':true}),wide?t('palette'):null,wide?h('span',{'aria-hidden':true},'↗'):null),
-          paletteOpen?h(NativeDialog,{title:t('palette'),onClose:()=>setPaletteOpen(false)},h(CanvasRow,{t,prefix:'acid-dialog'})):null); 
+          h('div',{ref:drawer,className:'acid-drawer'},
+            h('button',{type:'button',className:'acid-drawer-handle','aria-expanded':pinned,'aria-controls':bodyId,onClick:()=>setPinned(value=>!value)},
+              h('span',{className:'acid-drawer-badge','aria-hidden':true},'SYS'),h('span',{className:'acid-drawer-label'},`${t('canvas')} / ${t('palette')}`),h('i',{className:'acid-drawer-stripes','aria-hidden':true}),h('span',{className:'acid-drawer-chevron','aria-hidden':true},'▴')),
+            h('div',{id:bodyId,className:'acid-drawer-body'},modes,palette)),dialog);
       }
       function ColorField({ field, value, t, onColor, prefix='acid' }) {
         const [draft, setDraft] = React.useState(value);

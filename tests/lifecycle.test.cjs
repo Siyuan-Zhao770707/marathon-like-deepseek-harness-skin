@@ -23,7 +23,7 @@ function harness(options = {}) {
   const makeNode=()=>({dataset:{},style:{},classList:{add(){},remove(){}},setAttribute(){},querySelectorAll(){return []},remove(){styles.delete(this);bodies.delete(this)}});
   const context = vm.createContext({
     Element: class Element {},AbortController,MutationObserver:class{observe(){}disconnect(){}},setTimeout,clearTimeout,innerHeight:1000,
-    window: { addEventListener: (name, fn) => { if (!windowEvents.has(name)) windowEvents.set(name, new Set()); windowEvents.get(name).add(fn); }, removeEventListener: (name, fn) => windowEvents.get(name)?.delete(fn), __ModuleLoader__: { load: declaration => { exports = declaration.factory(() => ({ createElement: (...args) => args, useState: value => [value, () => {}], useEffect: () => {}, useSyncExternalStore: (_subscribe, getSnapshot) => getSnapshot() })); } } },
+    window: { addEventListener: (name, fn) => { if (!windowEvents.has(name)) windowEvents.set(name, new Set()); windowEvents.get(name).add(fn); }, removeEventListener: (name, fn) => windowEvents.get(name)?.delete(fn), __ModuleLoader__: { load: declaration => { exports = declaration.factory(() => ({ createElement: (...args) => args, useState: value => [value, () => {}], useEffect: () => {}, useLayoutEffect: () => {}, useRef: current => ({ current }), useId: () => ':acid:', useSyncExternalStore: (_subscribe, getSnapshot) => getSnapshot() })); } } },
     document: { documentElement: html, head: { appendChild: node => styles.add(node) },body:{append:node=>bodies.add(node)},addEventListener(){},removeEventListener(){},querySelectorAll(){return []},querySelector(){return null},createElement:makeNode },
     localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) }
   });
@@ -204,4 +204,18 @@ test('default, preset and midtone custom palettes keep text, metadata, links and
     for (const fg of ['--dsw-alias-label-primary', '--dsw-alias-label-secondary', '--dsw-alias-label-tertiary', '--dsw-alias-link']) for (const bg of backgrounds) assert.ok(ratio(t[fg], t[bg]) >= 4.5, `${mode} ${palette.surface} ${fg} on ${bg}`);
     for (const [fg, bg] of [['--acid-blue-fore', '--acid-blue'], ['--acid-accent-fore', '--acid-lime'], ['--acid-masthead-fore', '--acid-masthead-bg'], ['--acid-context-fore', '--acid-context-bg'], ['--acid-sidebar-fore', '--acid-sidebar-bg'], ['--acid-sidebar-secondary', '--acid-sidebar-hover'], ['--acid-sidebar-active-fore', '--acid-sidebar-active'], ['--acid-settings-nav-fore', '--acid-settings-nav-hover']]) assert.ok(ratio(v[fg], v[bg]) >= 4.5, `${mode} ${palette.surface} ${fg} on ${bg}`);
   }
+});
+
+test('NEXT footer keeps day/night and palette inside a collapsed bottom drawer', () => {
+  const runtime = harness(); runtime.exports.apply(runtime.ctx, {});
+  const tree = runtime.slots.get('industrial.signature').Component({ wide: true, t: value => value });
+  const find = (node, predicate) => { if (!Array.isArray(node)) return; if (predicate(node)) return node; for (const child of node.slice(2)) { const found = find(child, predicate); if (found) return found; } };
+  const drawer = find(tree, n => n[1]?.className === 'acid-drawer');
+  assert.ok(drawer);
+  const handle = find(drawer, n => n[1]?.className === 'acid-drawer-handle');
+  assert.equal(handle[1]['aria-expanded'], false);
+  const body = find(drawer, n => n[1]?.className === 'acid-drawer-body');
+  assert.ok(find(body, n => n[1]?.['data-appearance-option'] === 'night'));
+  assert.ok(find(body, n => n[1]?.className === 'acid-palette-shortcut'));
+  runtime.dispose();
 });
