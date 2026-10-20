@@ -83,6 +83,7 @@ test('masthead derives actual workspace ordinal, including absence and reordered
   assert.equal(context.index, 2); assert.equal(context.title, 'Beta');
   assert.equal(exports.workspaceContext(items, undefined), null);
   assert.equal(exports.workspaceContext(items.reverse(), 'b').index, 1);
+  assert.equal(exports.workspaceContext([{ workspaceId: 'x', sessionIds: ['s'] }, { workspaceId: 'y', sessionIds: ['b'] }], 'b', { x: 1, y: 7 }).index, 7);
 });
 
 test('native vector spells the exact two names in row reading order', () => {

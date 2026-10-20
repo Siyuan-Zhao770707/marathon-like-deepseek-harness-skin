@@ -29,3 +29,39 @@ test('strips alternate columns half a step apart beside the command stack',()=>{
   assert.ok(rest[0].row<=1+4-1);
   for(let i=2;i<rest.length;i++)assert.ok(rest[i].row>=rest[i-2].row+rest[i-2].span);
 });
+function loadNumbering(){
+  let api;const store={};
+  const code=fs.readFileSync(path.join(__dirname,'../lib/client.js'),'utf8');
+  const localStorage={getItem:k=>k in store?store[k]:null,setItem:(k,v)=>{store[k]=String(v);}};
+  vm.runInNewContext(code,{localStorage,window:{__ModuleLoader__:{load:module=>api=module.factory(()=>({createElement:(...args)=>args}))}}});
+  return {api,store};
+}
+test('numbering is stable and append-style: new workspaces get count + 1',()=>{
+  const {rankWorkspaces}=loadNumbering().api;
+  const seed=rankWorkspaces(null,['a','b','c']);
+  assert.deepEqual([...seed.order],['a','b','c']);assert.deepEqual({...seed.numbers},{a:1,b:2,c:3});
+  // native list puts the new workspace on top; it is still appended as 004
+  const added=rankWorkspaces(seed.order,['d','a','b','c']);
+  assert.deepEqual({...added.numbers},{a:1,b:2,c:3,d:4});
+  // delete closes the gap without reshuffling the remaining order
+  const removed=rankWorkspaces(added.order,['d','a','c']);
+  assert.deepEqual({...removed.numbers},{a:1,c:2,d:3});
+  // a reorder the user performed is adopted wholesale
+  const moved=rankWorkspaces(removed.order,['c','a','d'],true);
+  assert.deepEqual({...moved.numbers},{c:1,a:2,d:3});
+  // empty native list (still loading) never wipes the stored order
+  assert.deepEqual([...rankWorkspaces(moved.order,[]).order],['c','a','d']);
+});
+test('workspaceNumbers persists order and only adopts permutations after a reorder',()=>{
+  const {api,store}=loadNumbering();
+  const items=ids=>ids.map(workspaceId=>({workspaceId}));
+  assert.deepEqual({...api.workspaceNumbers(items(['a','b']))},{a:1,b:2});
+  assert.deepEqual(JSON.parse(store['dsh-industrial-acid-skin:workspace-order']),['a','b']);
+  assert.deepEqual({...api.workspaceNumbers(items(['n','a','b']))},{a:1,b:2,n:3});
+  // native order differs without a user reorder: numbers stay put
+  assert.deepEqual({...api.workspaceNumbers(items(['b','n','a']))},{a:1,b:2,n:3});
+  api.markWorkspaceReorder();
+  assert.deepEqual({...api.workspaceNumbers(items(['b','n','a']))},{b:1,n:2,a:3});
+  assert.deepEqual([...api.moveInOrder(['a','b','c'],'c','a')],['c','a','b']);
+  assert.deepEqual([...api.moveInOrder(['a','b','c'],'a',null)],['b','c','a']);
+});

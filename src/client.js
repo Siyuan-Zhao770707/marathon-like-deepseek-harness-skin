@@ -38,9 +38,9 @@ window.__ModuleLoader__.load({
       return result;
     }
 
-    function workspaceContext(items, current) {
+    function workspaceContext(items, current, numbers) {
       const index = items.findIndex(item => item.sessionIds?.includes(current));
-      return index < 0 ? null : { index: index + 1, workspaceId: items[index].workspaceId, title: items[index].title || items[index].name || items[index].path?.split(/[\\/]/).filter(Boolean).at(-1) || '' };
+      return index < 0 ? null : { index: numbers?.[String(items[index].workspaceId)] ?? index + 1, workspaceId: items[index].workspaceId, title: items[index].title || items[index].name || items[index].path?.split(/[\\/]/).filter(Boolean).at(-1) || '' };
     }
 
     function apply(ctx, config = {}) {
@@ -197,6 +197,6 @@ window.__ModuleLoader__.load({
       installModelControls(ctx, useAppearance);
     }
 
-    return { inject: ['slots', 'locale', 'theme', 'layout', 'uiWorkspace', 'connection'], apply, tokenOverrides, workspaceContext, formatWorkspaceIndex, normalizePalettes, normalizeCanvas, resolveMode, makeScheme, contrast, DEFAULT_PALETTES, PALETTE_PRESETS, modelControlSnapshot, effortSelection, modelPopoverPlacement, effortVisual, selectionIdentity, createMaxEpisode, acceptedDuration, ACCEPTED_MOTION };
+    return { inject: ['slots', 'locale', 'theme', 'layout', 'uiWorkspace', 'connection'], apply, tokenOverrides, workspaceContext, formatWorkspaceIndex, normalizePalettes, normalizeCanvas, resolveMode, makeScheme, contrast, DEFAULT_PALETTES, PALETTE_PRESETS, modelControlSnapshot, effortSelection, modelPopoverPlacement, effortVisual, selectionIdentity, createMaxEpisode, acceptedDuration, ACCEPTED_MOTION, rankWorkspaces, moveInOrder, workspaceNumbers, markWorkspaceReorder };
   }
 });

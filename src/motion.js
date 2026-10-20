@@ -22,8 +22,8 @@ function installComposerMenuClearance(){
 
 function installSkinMotion(getMotion){return createAcceptedMotionController(getMotion);}
 
-function syncWorkspaceOrdinals(items){
-  const ordinals=new Map(items.map((workspace,i)=>[String(workspace.workspaceId),formatWorkspaceIndex(i+1)]));
+function syncWorkspaceOrdinals(items,numbers){
+  const ordinals=new Map(items.map((workspace,i)=>[String(workspace.workspaceId),formatWorkspaceIndex(numbers?.[String(workspace.workspaceId)]??i+1)]));
   for(const row of document.querySelectorAll('[data-slot="sidebar.workspaces"] [data-row-key^="workspace:"]')){
     const index=ordinals.get(row.dataset.rowKey.slice(10));
     if(index)row.setAttribute('data-acid-ordinal',index);else row.removeAttribute('data-acid-ordinal');

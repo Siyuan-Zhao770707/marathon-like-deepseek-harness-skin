@@ -20,6 +20,52 @@ function workspaceIdentity(ids){
   return Object.fromEntries(ids.map(id=>[id,IDENTITY_COLORS[state.map[id]]]));
 }
 function identityInk(hex){return foreground(hex);}
+// Stable, append-style numbering. The skin keeps its own ordered list of
+// workspace ids: the first run adopts the native order (so nothing visibly
+// renumbers), new workspaces are appended (number = count + 1), deleted ones
+// drop out and the rest close the gap in order. A reorder the user performs
+// (native drag, or dragging strips) rewrites the order, so numbers always
+// follow what is on screen.
+const ORDER_PREF=`${ID}:workspace-order`;
+function rankWorkspaces(stored,ids,adopt=false){
+  const present=new Set(ids);
+  let order=[...new Set((Array.isArray(stored)?stored:[]).filter(id=>typeof id==='string'))];
+  if(ids.length){
+    if(adopt)order=[...ids];
+    else{order=order.filter(id=>present.has(id));for(const id of ids)if(!order.includes(id))order.push(id);}
+  }
+  const numbers={};let n=0;
+  for(const id of order)if(present.has(id))numbers[id]=++n;
+  return {order,numbers};
+}
+function moveInOrder(order,id,beforeId){
+  const next=order.filter(entry=>entry!==id);
+  const at=beforeId==null?-1:next.indexOf(beforeId);
+  if(at<0)next.push(id);else next.splice(at,0,id);
+  return next;
+}
+let workspaceAdoptUntil=0;
+function markWorkspaceReorder(){workspaceAdoptUntil=Date.now()+5000;}
+function loadWorkspaceOrder(){try{const value=JSON.parse(localStorage.getItem(ORDER_PREF));return Array.isArray(value)?value:null;}catch{return null;}}
+function saveWorkspaceOrder(order){try{localStorage.setItem(ORDER_PREF,JSON.stringify(order));}catch{}}
+function workspaceNumbers(items){
+  const ids=(items||[]).map(item=>String(item.workspaceId));
+  const stored=loadWorkspaceOrder();
+  let adopt=false;
+  // Only a pure permutation right after a native drag is adopted.
+  if(stored&&workspaceAdoptUntil>Date.now()){
+    const known=stored.filter(id=>ids.includes(id));
+    if(known.length===ids.length&&known.join('|')!==ids.join('|')){adopt=true;workspaceAdoptUntil=0;}
+  }
+  const {order,numbers}=rankWorkspaces(stored,ids,adopt);
+  if(ids.length&&JSON.stringify(order)!==JSON.stringify(stored))saveWorkspaceOrder(order);
+  return numbers;
+}
+function moveWorkspace(id,beforeId){
+  const order=moveInOrder(loadWorkspaceOrder()||[],String(id),beforeId==null?null:String(beforeId));
+  saveWorkspaceOrder(order);return order;
+}
+
 // Placement on a half-strip grid: 001 is the lead strip beside the command
 // stack, then each workspace alternates column one half-step lower.
 function stripPlacement(index){
@@ -82,14 +128,14 @@ function WorkspaceFlyout({state,t,onEnter,onLeave,onClose,motion}){
       h('p',{className:'acid-ws-fly-empty'},'NO SESSIONS // —')),document.body);
 }
 
-function SidebarNext({items,workspaceId,onPick,t,motion,toggleSidebar}){
+function SidebarNext({items,numbers,workspaceId,onPick,t,motion,toggleSidebar}){
   const [list,setList]=React.useState(null),[tick,setTick]=React.useState(0),[fly,setFly]=React.useState(null);
   const timers=React.useRef({}),flyRef=React.useRef(null),expanded=React.useRef(new Set());
   flyRef.current=fly;
   const ids=items.map(item=>String(item.workspaceId));
   const identity=React.useMemo(()=>workspaceIdentity(ids),[ids.join('|')]);
   const byId=React.useMemo(()=>new Map(items.map((item,i)=>[String(item.workspaceId),{item,index:i}])),[items]);
-  const live=React.useRef({});live.current={identity,byId,onPick,workspaceId};
+  const live=React.useRef({});live.current={identity,byId,onPick,workspaceId,numbers};
   // Locate the native workspace tree in the main frame.
   React.useLayoutEffect(()=>{
     let frame=0,signature='';
@@ -122,8 +168,8 @@ function SidebarNext({items,workspaceId,onPick,t,motion,toggleSidebar}){
   React.useLayoutEffect(()=>{
     if(!list||!active)return;
     list.setAttribute('data-acid-ws-grid','');
-    groups.forEach((group,i)=>{
-      const row=group.querySelector('[data-row-key^="workspace:"]'),id=row.dataset.rowKey.slice(10);
+    groups.forEach((group,k)=>{
+      const row=group.querySelector('[data-row-key^="workspace:"]'),id=row.dataset.rowKey.slice(10),i=(numbers?.[id]??k+1)-1;
       const place=stripPlacement(i),color=identity[id]||IDENTITY_COLORS[i%IDENTITY_COLORS.length];
       const count=byId.get(id)?.item.sessionIds?.length??sessionRows(group).length;
       group.style.gridColumn=String(place.column);group.style.gridRow=`${place.row} / span ${place.span}`;
@@ -156,7 +202,7 @@ function SidebarNext({items,workspaceId,onPick,t,motion,toggleSidebar}){
       if(flyRef.current){restore(flyRef.current.group);flyRef.current.group.removeAttribute('data-acid-ws-open');}
       if(row.getAttribute('aria-expanded')==='false'){expanded.current.add(group);row.click();}
       const rect=group.getBoundingClientRect(),side=document.querySelector('.BynINW_sidebarCol')?.getBoundingClientRect();
-      const entry=byId.get(id);const index=entry?entry.index+1:groups.indexOf(group)+1;
+      const entry=byId.get(id);const index=live.current.numbers?.[id]??(entry?entry.index+1:groups.indexOf(group)+1);
       group.setAttribute('data-acid-ws-open','');
       setFly({group,id,color:identity[id]||IDENTITY_COLORS[0],number:row.getAttribute('data-acid-ordinal')||formatWorkspaceIndex(index),
         name:row.querySelector('.hIlkoa_title')?.textContent||entry?.item.title||entry?.item.name||'—',path:entry?.item.path||'',anchor:{top:rect.top,bottom:rect.bottom,left:(side?.right??rect.right)+2}});
@@ -184,10 +230,11 @@ function SidebarNext({items,workspaceId,onPick,t,motion,toggleSidebar}){
     };
     list.addEventListener('pointerover',over);list.addEventListener('pointerout',out);list.addEventListener('focusin',focus);
     list.addEventListener('click',pick,true);list.addEventListener('keydown',pick,true);
+    const dropped=()=>markWorkspaceReorder();list.addEventListener('drop',dropped,true);list.addEventListener('dragend',dropped,true);list.addEventListener('pointerup',dropped,true);
     timers.current.api={enter:()=>clear('close'),leave,close};
     const scroll=()=>close();list.addEventListener('scroll',scroll,{passive:true});window.addEventListener('resize',scroll);
     return()=>{list.removeEventListener('pointerover',over);list.removeEventListener('pointerout',out);list.removeEventListener('focusin',focus);
-      list.removeEventListener('click',pick,true);list.removeEventListener('keydown',pick,true);list.removeEventListener('scroll',scroll);window.removeEventListener('resize',scroll);close();};
+      list.removeEventListener('click',pick,true);list.removeEventListener('keydown',pick,true);list.removeEventListener('drop',dropped,true);list.removeEventListener('dragend',dropped,true);list.removeEventListener('pointerup',dropped,true);list.removeEventListener('scroll',scroll);window.removeEventListener('resize',scroll);close();};
   },[list,active]);
   if(!list||!active)return null;
   const api=timers.current.api||{enter(){},leave(){},close(){}};

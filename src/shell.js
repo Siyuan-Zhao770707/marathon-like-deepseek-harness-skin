@@ -10,10 +10,10 @@ function NativeDialog({title,children,onClose,className=''}){
     h('div',{className:'acid-dialog-heading'},h('h2',null,title),h('button',{type:'button','aria-label':'关闭',onClick:close},'×')),children);
 }
 
-function WorkspaceRailButtons({items,workspaceId,onPick,t}){
+function WorkspaceRailButtons({items,numbers,workspaceId,onPick,t}){
   if(!items.length)return null;
   return h('nav',{className:'acid-workspace-rail','aria-label':t('workspace')},...items.map((item,i)=>{
-    const number=formatWorkspaceIndex(i+1),name=item.title||item.name||item.path?.split(/[\\/]/).filter(Boolean).at(-1)||t('none');
+    const number=formatWorkspaceIndex(numbers?.[String(item.workspaceId)]??i+1),name=item.title||item.name||item.path?.split(/[\\/]/).filter(Boolean).at(-1)||t('none');
     return h('button',{key:item.workspaceId,type:'button',className:'acid-rail-workspace','data-acid-workspace':item.workspaceId,
       title:`${number} ${name}`,'aria-label':`${t('workspace')} ${number} ${name}`,'aria-pressed':workspaceId===item.workspaceId,
       onClick:()=>onPick(item.workspaceId)},number);
@@ -43,10 +43,11 @@ function WorkspaceRail(props){
   return target?createPortal(h(WorkspaceRailButtons,props),target):null;
 }
 
+function sortByNumber(items,numbers){return [...items].sort((a,b)=>(numbers[String(a.workspaceId)]??1e9)-(numbers[String(b.workspaceId)]??1e9));}
 function Masthead(props){
   const items=props.useWorkspaces(state=>state.items);
   const current=props.useSessions(state=>Object.values(state.byId).find(session=>(session.retainedBy?.mainView??0)>0)?.id);
-  const panel=props.usePanelInfo(state=>state.activePanelId),workspace=workspaceContext(items,current);
+  const panel=props.usePanelInfo(state=>state.activePanelId),numbers=workspaceNumbers(items),ordered=sortByNumber(items,numbers),workspace=workspaceContext(items,current,numbers);
   const context=React.useRef(null),previous=React.useRef(null);
   const [picker,setPicker]=React.useState(false),[nativeState,setNativeState]=React.useState(null);
   const appearance=props.useAppearance(),native=window.dshDesktop?.windowControls;
@@ -57,9 +58,9 @@ function Masthead(props){
     else{cancelWorkspaceHeader();context.current.querySelector('#workspace-index').textContent='—';delete context.current.querySelector('#workspace-index').dataset.ordinal;context.current.querySelector('#workspace-name').textContent=props.t('none');context.current.setAttribute('aria-label',props.t('workspace'));}
     if(last&&workspace&&last.workspaceId!==workspace.workspaceId)props.motion()?.revealStage('workspace',workspace.index>(last.index??0)?1:-1);
     else if(last&&last.panel!==panel)props.motion()?.revealStage('page');
-    previous.current={...workspace,panel};syncWorkspaceOrdinals(items);
+    previous.current={...workspace,panel};syncWorkspaceOrdinals(items,workspaceNumbers(items));
   },[workspace?.index,workspace?.workspaceId,workspace?.title,panel,items,appearance]);
-  React.useEffect(()=>{const observer=new MutationObserver(()=>syncWorkspaceOrdinals(items));observer.observe(document.querySelector('[data-slot="sidebar.workspaces"]')||document.body,{childList:true,subtree:true});return()=>observer.disconnect();},[items]);
+  React.useEffect(()=>{const observer=new MutationObserver(()=>syncWorkspaceOrdinals(items,workspaceNumbers(items)));observer.observe(document.querySelector('[data-slot="sidebar.workspaces"]')||document.body,{childList:true,subtree:true});return()=>observer.disconnect();},[items]);
   React.useEffect(()=>()=>cancelWorkspaceHeader(),[]);
   const windowAction=action=>native.invoke(action).then(state=>setNativeState(state)).catch(()=>{});
   const openMenu=(name,event)=>{const rect=event.currentTarget.getBoundingClientRect();native.menu(name,rect.left,rect.bottom).catch(()=>{});};
@@ -70,13 +71,13 @@ function Masthead(props){
       h('span',{className:'workspace-counter'},h('strong',{className:'acid-context-number workspace-index',id:'workspace-index'},'—')),
       h('span',{className:'workspace-detail'},h('span',{className:'acid-meta'},'ACTIVE WORKSPACE'),h('span',{className:'workspace-name-slot'},h('span',{className:'acid-context-title',id:'workspace-name',title:workspace?.title},props.t('none')))),h('span',{className:'acid-workspace-arrow','aria-hidden':true},'↗')),
     native?h('div',{className:'acid-window-controls'},h('button',{type:'button','aria-label':'最小化',title:'最小化',onClick:()=>windowAction('minimize')},'−'),h('button',{type:'button','aria-label':nativeState?.maximized?'还原':'最大化',title:nativeState?.maximized?'还原':'最大化',onClick:()=>windowAction('maximize')},nativeState?.maximized?'▣':'□'),h('button',{type:'button','aria-label':'关闭',title:'关闭',onClick:()=>windowAction('close')},'×')):null),
-    h(WorkspaceRail,{items,workspaceId:workspace?.workspaceId,t:props.t,onPick:id=>{
+    h(WorkspaceRail,{items:ordered,numbers,workspaceId:workspace?.workspaceId,t:props.t,onPick:id=>{
       if(id===workspace?.workspaceId){props.goHome();return;}
       props.motion()?.captureStage();props.pickWorkspace(id);
     }}),
-    h(SidebarNext,{items,workspaceId:workspace?.workspaceId,t:props.t,motion:props.motion,toggleSidebar:props.toggleSidebar,onPick:id=>{
+    h(SidebarNext,{items,numbers,workspaceId:workspace?.workspaceId,t:props.t,motion:props.motion,toggleSidebar:props.toggleSidebar,onPick:id=>{
       if(id===workspace?.workspaceId){props.goHome();return;}
       props.motion()?.captureStage();props.pickWorkspace(id);
     }}),
-    picker?h(NativeDialog,{title:props.t('workspace'),className:'acid-workspace-dialog',onClose:()=>setPicker(false)},...items.map((item,i)=>h('button',{key:item.workspaceId,type:'button',className:'acid-workspace-option','data-acid-workspace':item.workspaceId,'aria-pressed':workspace?.workspaceId===item.workspaceId,onClick:()=>{setPicker(false);props.pickWorkspace(item.workspaceId);}},h('span',null,formatWorkspaceIndex(i+1)),h('strong',null,item.title||item.path?.split(/[\\/]/).filter(Boolean).at(-1)||props.t('none')),h('span',{'aria-hidden':true},workspace?.workspaceId===item.workspaceId?'↗':'+')))):null);
+    picker?h(NativeDialog,{title:props.t('workspace'),className:'acid-workspace-dialog',onClose:()=>setPicker(false)},...ordered.map((item,i)=>h('button',{key:item.workspaceId,type:'button',className:'acid-workspace-option','data-acid-workspace':item.workspaceId,'aria-pressed':workspace?.workspaceId===item.workspaceId,onClick:()=>{setPicker(false);props.pickWorkspace(item.workspaceId);}},h('span',null,formatWorkspaceIndex(numbers[String(item.workspaceId)]??i+1)),h('strong',null,item.title||item.path?.split(/[\\/]/).filter(Boolean).at(-1)||props.t('none')),h('span',{'aria-hidden':true},workspace?.workspaceId===item.workspaceId?'↗':'+')))):null);
 }
