@@ -48,6 +48,7 @@ function Masthead(props){
   const items=props.useWorkspaces(state=>state.items);
   const current=props.useSessions(state=>Object.values(state.byId).find(session=>(session.retainedBy?.mainView??0)>0)?.id);
   const panel=props.usePanelInfo(state=>state.activePanelId),numbers=workspaceNumbers(items),ordered=sortByNumber(items,numbers),workspace=workspaceContext(items,current,numbers);
+  const identityColor=workspace?workspaceIdentity(items.map(item=>String(item.workspaceId)),numbers)[String(workspace.workspaceId)]:null;
   const context=React.useRef(null),previous=React.useRef(null);
   const [picker,setPicker]=React.useState(false),[nativeState,setNativeState]=React.useState(null);
   const appearance=props.useAppearance(),native=window.dshDesktop?.windowControls;
@@ -67,7 +68,7 @@ function Masthead(props){
   return h(React.Fragment,null,h('header',{className:'acid-masthead','data-native-controls':native?'true':'false','aria-label':'DeepSeek Harness'},
     h('div',{className:'acid-wordmark'},h('button',{type:'button',className:'acid-brand-home','aria-label':'DeepSeek Harness',onClick:props.goHome},h(SkinSymbol,{className:'acid-brand-symbol'}),h('span',{className:'acid-wordmark-svg',dangerouslySetInnerHTML:{__html:MASTHEAD}}))),
     native?h('div',{className:'acid-menus'},h('button',{type:'button',onClick:event=>openMenu('application',event)},h('span',{'aria-hidden':true},'01'),document.documentElement.lang.startsWith('zh')?'应用':'Application'),h('button',{type:'button',onClick:event=>openMenu('edit',event)},h('span',{'aria-hidden':true},'02'),document.documentElement.lang.startsWith('zh')?'编辑':'Edit')):null,
-    h('button',{ref:context,type:'button',className:'acid-context workspace-display',onClick:()=>setPicker(true),disabled:items.length===0,'aria-label':props.t('workspace')},
+    h('button',{ref:context,type:'button',className:'acid-context workspace-display','data-acid-identity':identityColor||undefined,style:identityColor?{'--acid-ws-context':identityColor,'--acid-ws-context-fore':foreground(identityColor)}:undefined,onClick:()=>setPicker(true),disabled:items.length===0,'aria-label':props.t('workspace')},
       h('span',{className:'workspace-counter'},h('strong',{className:'acid-context-number workspace-index',id:'workspace-index'},'—')),
       h('span',{className:'workspace-detail'},h('span',{className:'acid-meta'},'ACTIVE WORKSPACE'),h('span',{className:'workspace-name-slot'},h('span',{className:'acid-context-title',id:'workspace-name',title:workspace?.title},props.t('none')))),h('span',{className:'acid-workspace-arrow','aria-hidden':true},'↗')),
     native?h('div',{className:'acid-window-controls'},h('button',{type:'button','aria-label':'最小化',title:'最小化',onClick:()=>windowAction('minimize')},'−'),h('button',{type:'button','aria-label':nativeState?.maximized?'还原':'最大化',title:nativeState?.maximized?'还原':'最大化',onClick:()=>windowAction('maximize')},nativeState?.maximized?'▣':'□'),h('button',{type:'button','aria-label':'关闭',title:'关闭',onClick:()=>windowAction('close')},'×')):null),
