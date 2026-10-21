@@ -223,7 +223,7 @@ test('default, preset and midtone custom palettes keep text, metadata, links and
   const custom = ['#000000', '#FFFFFF', '#777777', '#747474', '#888888', '#112233', '#C0C030'].map(color => ({ accent: color, signal: color, surface: color, text: color }));
   for (const mode of ['day', 'night']) for (const palette of [...Object.values(exports.PALETTE_PRESETS).map(p => p[mode]), ...custom]) {
     const { tokens: t, variables: v } = exports.makeScheme(mode, palette);
-    const backgrounds = ['--dsw-alias-bg-base', '--dsw-alias-bg-layer-1', '--dsw-alias-bg-layer-3', '--dsw-alias-interactive-bg-hover', '--dsw-alias-interactive-bg-hover-solid, '--dsw-specific-bubble', '--dsw-specific-bubble-highlight'];
+    const backgrounds = ['--dsw-alias-bg-base', '--dsw-alias-bg-layer-1', '--dsw-alias-bg-layer-3', '--dsw-alias-interactive-bg-hover', '--dsw-alias-interactive-bg-hover-solid', '--dsw-specific-bubble', '--dsw-specific-bubble-highlight'];
     for (const fg of ['--dsw-alias-label-primary', '--dsw-alias-label-secondary', '--dsw-alias-label-tertiary', '--dsw-alias-link']) for (const bg of backgrounds) assert.ok(ratio(t[fg], t[bg]) >= 4.5, `${mode} ${palette.surface} ${fg} on ${bg}`);
     for (const [fg, bg] of [['--acid-blue-fore', '--acid-blue'], ['--acid-accent-fore', '--acid-lime'], ['--acid-masthead-fore', '--acid-masthead-bg'], ['--acid-context-fore', '--acid-context-bg'], ['--acid-sidebar-fore', '--acid-sidebar-bg'], ['--acid-sidebar-secondary', '--acid-sidebar-hover'], ['--acid-sidebar-active-fore', '--acid-sidebar-active'], ['--acid-settings-nav-fore', '--acid-settings-nav-hover']]) assert.ok(ratio(v[fg], v[bg]) >= 4.5, `${mode} ${palette.surface} ${fg} on ${bg}`);
   }

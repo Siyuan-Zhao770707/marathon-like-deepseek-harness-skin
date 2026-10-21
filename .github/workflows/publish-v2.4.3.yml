@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/publish-v2.4.3.yml'
+      - 'tests/lifecycle.test.cjs'
   workflow_dispatch:
 
 permissions:
