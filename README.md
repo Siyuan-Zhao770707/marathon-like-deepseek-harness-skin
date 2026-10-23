@@ -133,7 +133,14 @@
 ## 安装
 
 1. 下载 [v2.4.3 发布包](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.3) 中的 `dsh-industrial-acid-skin-2.4.3.tgz`，或按[构建步骤](docs/INSTALL.md#构建与测试)从本仓库源码运行 `npm run build` 和 `npm pack`，从源码生成相同文件。历史公开版本见 [Releases](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases)。
-2. 在 Harness 的「插件 → 添加插件」中导入并启用。
+2. 打开 Harness「插件 → 添加插件」，在**包名或地址**输入框中粘贴下面的完整 `.tgz` 下载地址并安装（也可先下载文件，再输入它在本机的**绝对路径**，例如 `C:\Users\你的用户名\Downloads\dsh-industrial-acid-skin-2.4.3.tgz`）：
+
+   ```text
+   https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/download/v2.4.3/dsh-industrial-acid-skin-2.4.3.tgz
+   ```
+
+   **不要输入** `dsh-industrial-acid-skin-2.4.3`：这不是 npm 注册表中的插件包名，Harness 会提示「未找到相关插件」。下载文件但只输入文件名也不会自动读取本地文件。
+3. 安装完成后点「立即启用」；如 Harness 提示需要重启，则重启客户端。
 3. 在侧栏调色盘，或「设置 → 通用设置 → 皮肤外观」里调整颜色和动效。
 
 本次桌面验证环境为 **Windows / Harness 0.2.1-rc.2**，兼容声明覆盖 0.2.0-rc.2 至 0.2.1（含 RC）。可选标题栏适配器也已支持已核对哈希的 0.2.1-rc.2，可将最小化、最大化／还原和关闭按钮恢复为右上角竖排。安装、构建和回退步骤放在 [安装与开发](docs/INSTALL.md) 里。
