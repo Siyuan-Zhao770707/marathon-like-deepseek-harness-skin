@@ -3,7 +3,13 @@
 ## 安装
 
 1. 优先从 [v2.4.3 Release](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.3) 下载运行包，也可从本仓库源码运行下方构建命令生成 `dsh-industrial-acid-skin-2.4.3.tgz`。历史公开版本见 [Releases](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases)。
-2. 在 Harness 的“插件 → 添加插件”中选择运行包并启用。
+2. 在 Harness「插件 → 添加插件」的**包名或地址**输入框粘贴下方的 `.tgz` 完整 URL 后安装，完成后点击「立即启用」（提示重启时重启）：
+
+   ```text
+   https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/download/v2.4.3/dsh-industrial-acid-skin-2.4.3.tgz
+   ```
+
+   或先从 Release 下载 `.tgz`，输入下载文件的**本机绝对路径**，例如 `C:\Users\你的用户名\Downloads\dsh-industrial-acid-skin-2.4.3.tgz`。Harness 的输入框接受 npm 包名、Git 地址、tarball URL 或本地路径；**不提供按文件名自动搜索 GitHub Release 的功能**。因此只输入 `dsh-industrial-acid-skin-2.4.3` 会被当作 npm 包名查询并出现「未找到相关插件」，这不表示发布包失效。
 3. 在侧栏底部的调色盘或“设置 → 通用设置 → 皮肤外观”调整颜色和动效。
 
 运行包内置字体、SVG 和编译后的客户端，皮肤资源可离线加载。插件包名保留 `dsh-industrial-acid-skin`，便于现有安装升级并保留外观偏好。
