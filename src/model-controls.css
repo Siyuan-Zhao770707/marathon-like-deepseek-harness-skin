@@ -90,3 +90,8 @@ html[data-industrial-motion=off] .acid-reason-ghost{display:none}
 html[data-industrial-acid] .acid-model-controls{display:flex!important;align-items:center!important;gap:8px;padding-right:10px;min-height:36px;box-sizing:border-box}
 html[data-industrial-acid] .acid-model-controls .acid-model-trigger,html[data-industrial-acid] .acid-model-controls .acid-effort-trigger{display:inline-flex;align-items:center;height:32px}
 html[data-industrial-acid] [data-slot="conversation.input.right"]{display:flex!important;align-items:center!important;padding-right:8px;gap:8px}
+
+/* v3c-model-bar-host: align with new composer trailing cluster */
+html[data-industrial-acid] .GRgSLq_standardControls,html[data-industrial-acid] .GRgSLq_trailing{display:flex!important;align-items:center!important;gap:8px;padding-right:12px;min-height:36px;box-sizing:border-box}
+html[data-industrial-acid] .GRgSLq_standardControls .acid-model-controls,html[data-industrial-acid] .GRgSLq_trailing .acid-model-controls{margin:0;padding-right:0}
+html[data-industrial-acid] .GRgSLq_primary,html[data-industrial-acid] .GRgSLq_trailing>button,html[data-industrial-acid] .GRgSLq_standardControls>button{align-self:center}

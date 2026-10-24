@@ -112,3 +112,18 @@ html[data-industrial-acid][data-windows-titlebar] .acid-context{min-width:0;over
 html[data-industrial-acid][data-windows-titlebar] .workspace-name-slot .acid-context-title,html[data-industrial-acid][data-windows-titlebar] .workspace-name-ghost{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 html[data-industrial-acid] .acid-wordmark,.acid-context{min-width:0}
 html[data-industrial-acid] .acid-wordmark{overflow:hidden}
+
+/* v3c: 2-col masthead (no native menus) — keep brand/context adjacent without paint overflow */
+html[data-industrial-acid] .acid-masthead[data-native-controls=false]{grid-template-columns:minmax(0,1fr) minmax(320px,520px)}
+html[data-industrial-acid][data-windows-titlebar] .acid-masthead[data-native-controls=false]{grid-template-columns:minmax(0,1.05fr) minmax(300px,480px)}
+html[data-industrial-acid] .acid-wordmark,html[data-industrial-acid] .acid-brand-home,html[data-industrial-acid] .acid-wordmark-svg{min-width:0;max-width:100%;overflow:hidden}
+html[data-industrial-acid] .acid-wordmark-svg>svg{display:block;width:auto;max-width:100%;max-height:100%}
+html[data-industrial-acid] .acid-context{min-width:0;overflow:hidden}
+html[data-industrial-acid] .workspace-detail{min-width:0;overflow:hidden}
+html[data-industrial-acid] .workspace-name-slot{min-width:0;max-width:100%}
+html[data-industrial-acid] .workspace-name-slot .acid-context-title{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* v3c-context-balance */
+html[data-industrial-acid] .acid-context{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding-right:16px;box-sizing:border-box}
+html[data-industrial-acid] .workspace-counter{flex:none}
+html[data-industrial-acid] .workspace-detail{min-width:0}
+html[data-industrial-acid] .acid-workspace-arrow{flex:none}
