@@ -27,7 +27,7 @@ function createAcceptedMotionController(getMotion) {
   const buttons = new Set(), composers = new Set(), statuses = new Map(), panels = new Map();
   const shellSurfaces=new Map(),dockBodies=new Map(),railFrames=new Map();
   const controller = new AbortController(), ease = 'cubic-bezier(.2,.78,.25,1)';
-  const panelSelector = '.acid-model-popover,.acid-dialog[open],.acoR2W_panel,[data-trigger-menu],.haSm5q_details,[role="dialog"]:not(.acid-dialog)';
+  const panelSelector = '.acid-model-popover,.acid-dialog[open],.AnXs9G_panel,[data-trigger-menu],.haSm5q_details,[role="dialog"]:not(.acid-dialog)';
   let disposed = false, pendingStage, routeRun, workspaceRun, navigationFrame, observedFrame;
   const geometryObserver=new MutationObserver(()=>scanShellSurfaces());
   const localRouteSelector='.Dc7zOa_tab,[data-row-key^="session:"][role="treeitem"]';
@@ -243,7 +243,7 @@ function createAcceptedMotionController(getMotion) {
     [...queue.children].forEach((dot,i)=>current.animate(dot,[{opacity:.15},{opacity:1,offset:.4},{opacity:.3,offset:.75},{opacity:1}],getMotion()==='quiet'?90:300,i*(getMotion()==='quiet'?50:170),'linear'));
     statuses.set(node,{text,run:current});
   }
-  function panelKind(node) { return node.matches('.haSm5q_details')?'trace':node.matches('.acid-dialog,.acoR2W_panel,dialog')?'dialog':'menu'; }
+  function panelKind(node) { return node.matches('.haSm5q_details')?'trace':node.matches('.acid-dialog,.AnXs9G_panel,dialog')?'dialog':'menu'; }
   function prepare(root) {
     if(excluded(root))return;
     if(root instanceof Element&&root.matches('button'))decorateButton(root);

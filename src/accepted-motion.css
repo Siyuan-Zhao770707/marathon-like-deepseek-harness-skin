@@ -17,7 +17,7 @@
 .acid-transition-proxy{position:fixed;z-index:2200;overflow:hidden;pointer-events:none!important;isolation:isolate}
 .acid-transition-proxy *{pointer-events:none!important;animation:none!important;transition:none!important}
 .acid-transition-proxy>.acid-approved-mask{z-index:10}
-.acid-dialog,html[data-industrial-acid] .acoR2W_panel,html[data-industrial-acid] .wCInkW_options>*,html[data-industrial-acid] .fO69Vq_cardHead{animation:none!important}
+.acid-dialog,html[data-industrial-acid] .AnXs9G_panel,html[data-industrial-acid] .AnXs9G_options>*,html[data-industrial-acid] .V7pFBG_cardHead{animation:none!important}
 /* Keep the existing native icon controls when Windows hides its collapsed track. */
 html[data-industrial-acid][data-windows-titlebar] .mP3x-q_frame[data-sidebar-collapsed]{grid-template-columns:var(--acid-rail-columns,56px minmax(0,1fr) 0px)!important;--dsh-windows-sidebar-width:56px!important}
 html[data-industrial-acid][data-windows-titlebar] .mP3x-q_frame[data-sidebar-collapsed] .mP3x-q_handle[data-side=rightbar]{left:calc(100% - min(var(--acid-rail-right-width,0px),max(0px,calc(100% - 456px))))!important}

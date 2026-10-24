@@ -26,8 +26,8 @@ html[data-industrial-acid] .acid-context{display:flex;flex-direction:row;align-i
 .workspace-glyph{display:block}.workspace-overflow{position:absolute;right:0;top:.1em;font-size:.28em;line-height:1}
 .workspace-detail{display:flex;flex-direction:column;gap:16px;flex:1;min-width:0}
 .workspace-detail .acid-meta{font:10px var(--acid-mono);letter-spacing:.08em;white-space:nowrap}
-.workspace-name-slot{position:relative;display:block;min-width:0;overflow:hidden}
-.workspace-name-slot .acid-context-title,.workspace-name-ghost{display:block;width:100%;font:21px/1.2 var(--acid-mono);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.workspace-name-slot{position:relative;display:block;min-width:0;overflow:visible}
+.workspace-name-slot .acid-context-title,.workspace-name-ghost{display:block;width:100%;font:21px/1.25 var(--acid-mono);overflow:visible;white-space:normal;overflow-wrap:anywhere;word-break:break-word;text-overflow:clip}
 .workspace-name-ghost{position:absolute;inset:0;pointer-events:none}
 .acid-workspace-arrow{font:28px var(--acid-mono);color:var(--acid-context-fore)}
 .workspace-switch-line{position:absolute;bottom:10px;left:25px;right:25px;height:3px;background:linear-gradient(to right,var(--acid-context-number) 0 69%,transparent 69% 73%,var(--acid-blue) 73%);opacity:0;pointer-events:none}
@@ -57,7 +57,7 @@ html[data-industrial-acid] [data-acid-ordinal]:before{content:attr(data-acid-ord
 .acid-mode-switch button[aria-pressed=true]{background:var(--acid-sidebar-fore);color:var(--acid-sidebar-bg);border-color:var(--acid-sidebar-fore)}
 .acid-palette-shortcut{display:flex;align-items:center;gap:8px;width:100%;font:11px var(--dsw-font-family);background:transparent;color:var(--acid-sidebar-fore);border:1px solid var(--acid-sidebar-rule);padding:8px;margin-top:4px;cursor:pointer}
 .acid-palette-shortcut>span:last-child{margin-left:auto}.acid-palette-swatch{width:14px;height:14px;background:linear-gradient(135deg,var(--acid-lime) 50%,var(--acid-blue) 50%)}
-html[data-industrial-acid] .WOwLGG_stack:after,html[data-industrial-acid] .fO69Vq_pageTitle:before{content:none}
+html[data-industrial-acid] .WOwLGG_stack:after,html[data-industrial-acid] .V7pFBG_pageTitle:before{content:none}
 html[data-industrial-acid] .WOwLGG_headline{justify-content:center;font-size:clamp(25px,3.2vw,47px);gap:16px}
 html[data-industrial-acid] .acid-hero-mark{width:56px;height:56px;padding:0;background:transparent;color:var(--dsw-alias-label-primary);fill:currentColor;display:block}
 /* Native command/attachment menus live inside the card and extend above it.
@@ -67,11 +67,11 @@ html[data-industrial-acid] .RlGAzG_card:after{content:'';position:absolute;right
 html[data-industrial-acid] .RlGAzG_card [data-trigger-menu]{max-height:var(--acid-composer-menu-height,400px)!important}
 html[data-industrial-acid] .RlGAzG_primary{background:var(--acid-lime);color:var(--acid-accent-fore);border-radius:0;clip-path:polygon(0 0,100% 0,100% 76%,76% 76%,76% 100%,0 100%)}
 html[data-industrial-acid] .RlGAzG_add{border-radius:0}
-html[data-industrial-acid] .fO69Vq_card:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary);--dsw-alias-label-primary:inherit;--dsw-alias-label-secondary:inherit;--dsw-alias-label-tertiary:inherit}
-html[data-industrial-acid] .fO69Vq_cardTitle{font-size:18px}.acid-settings-title{font:28px var(--dsw-font-family)}
-html[data-industrial-acid] .acoR2W_panel{animation:acid-panel-in .36s cubic-bezier(.16,.8,.18,1) both}
-html[data-industrial-acid] .wCInkW_options>*,html[data-industrial-acid] .fO69Vq_cardHead{animation:acid-layer-in .42s cubic-bezier(.16,.8,.18,1) both}
-html[data-industrial-acid] .wCInkW_options>*:nth-child(2){animation-delay:45ms}html[data-industrial-acid] .wCInkW_options>*:nth-child(3){animation-delay:90ms}
+html[data-industrial-acid] .V7pFBG_card:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary);--dsw-alias-label-primary:inherit;--dsw-alias-label-secondary:inherit;--dsw-alias-label-tertiary:inherit}
+html[data-industrial-acid] .V7pFBG_cardTitle{font-size:18px}.acid-settings-title{font:28px var(--dsw-font-family)}
+html[data-industrial-acid] .AnXs9G_panel{animation:acid-panel-in .36s cubic-bezier(.16,.8,.18,1) both}
+html[data-industrial-acid] .AnXs9G_options>*,html[data-industrial-acid] .V7pFBG_cardHead{animation:acid-layer-in .42s cubic-bezier(.16,.8,.18,1) both}
+html[data-industrial-acid] .AnXs9G_options>*:nth-child(2){animation-delay:45ms}html[data-industrial-acid] .AnXs9G_options>*:nth-child(3){animation-delay:90ms}
 .acid-dialog{background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);border:1px solid var(--acid-rule);width:min(660px,calc(100vw - 36px));max-height:calc(100dvh - 50px);padding:22px;box-sizing:border-box;box-shadow:7px 7px 0 color-mix(in srgb,var(--acid-lime),transparent 70%);animation:acid-panel-in .35s cubic-bezier(.16,.8,.18,1) both}
 .acid-dialog::backdrop{background:#000a;backdrop-filter:blur(4px)}
 .acid-dialog-heading{display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;border-bottom:1px solid var(--acid-rule);margin-bottom:16px}.acid-dialog-heading h2{font:24px var(--dsw-font-family);margin:0}
@@ -96,34 +96,41 @@ html[data-industrial-acid] .wCInkW_options>*:nth-child(2){animation-delay:45ms}h
 @keyframes acid-panel-in{from{clip-path:inset(0 0 100%);transform:translateY(12px)}to{clip-path:inset(0);transform:translateY(0)}}
 @keyframes acid-layer-in{from{opacity:0;transform:translateX(-16px);clip-path:inset(0 100% 0 0)}to{opacity:1;transform:translateX(0);clip-path:inset(0)}}
 html[data-industrial-motion=off] .acid-fx,html[data-industrial-motion=off] .acid-intro{display:none}
-html[data-industrial-motion=off] .acid-dialog,html[data-industrial-motion=off] .acoR2W_panel,html[data-industrial-motion=off] .wCInkW_options>*,html[data-industrial-motion=off] .fO69Vq_cardHead{animation:none!important}
+html[data-industrial-motion=off] .acid-dialog,html[data-industrial-motion=off] .AnXs9G_panel,html[data-industrial-motion=off] .AnXs9G_options>*,html[data-industrial-motion=off] .V7pFBG_cardHead{animation:none!important}
 @media(min-width:1900px){html[data-industrial-acid]{--acid-header-height:145px}html[data-industrial-acid] .acid-masthead{grid-template-columns:minmax(350px,1fr) 230px minmax(350px,540px) 52px}.workspace-counter{font-size:85px}}
 @media(max-width:1190px){html[data-industrial-acid]{--acid-header-height:112px}html[data-industrial-acid] .acid-masthead{grid-template-columns:minmax(270px,1fr) 132px 295px 44px}html[data-industrial-acid] .acid-wordmark{padding:15px;gap:10px}.acid-brand-home{gap:12px}html[data-industrial-acid] .acid-wordmark .acid-brand-symbol{width:59px;height:59px}html[data-industrial-acid] .acid-context{padding:14px 17px;gap:13px}.workspace-counter{font-size:48px}.workspace-detail .acid-meta{font-size:8px}.workspace-name-slot .acid-context-title,.workspace-name-ghost{font-size:17px}.acid-workspace-arrow{font-size:22px}.acid-menus button{padding:8px;gap:4px;font-size:11px}.acid-sidebar-cut{height:68px}}
 @media(max-width:980px){html[data-industrial-acid] .acid-masthead{grid-template-columns:minmax(180px,1fr) 76px 276px 44px}.acid-menus{grid-template-columns:1fr;grid-template-rows:1fr 1fr}.acid-menus button{border-bottom:1px solid var(--acid-rule);font-size:10px}.acid-menus button:last-child{border-bottom:0}html[data-industrial-acid] .acid-masthead[data-native-controls=false]{grid-template-columns:minmax(220px,1fr) 276px}.workspace-name-slot .acid-context-title,.workspace-name-ghost{font-size:16px}}
-@media(max-width:720px){html[data-industrial-acid]{--acid-header-height:102px}html[data-industrial-acid] .acid-masthead{grid-template-columns:minmax(0,1fr) 48px 154px 36px}.acid-menus button{justify-content:center;padding:5px 2px;font-size:10px}.acid-menus button>span:not(.acid-fx){display:none}html[data-industrial-acid] .acid-masthead[data-native-controls=false]{grid-template-columns:minmax(0,1fr) 154px}html[data-industrial-acid] .acid-wordmark{padding:9px 8px;gap:6px}.acid-brand-home{gap:5px;flex-direction:column;align-items:stretch}html[data-industrial-acid] .acid-wordmark .acid-brand-symbol{width:35px;height:35px}.acid-sidebar-toggle{height:50px;width:25px;border:0;padding:3px}.acid-wordmark-svg>svg{max-height:37px}html[data-industrial-acid] .acid-context{flex-direction:column;align-items:flex-start;padding:8px 11px;border-top-width:3px}.workspace-counter{font-size:32px;position:absolute;right:10px;top:25px}.workspace-detail{gap:0;flex:1;width:100%;align-self:stretch}.workspace-detail .workspace-name-slot{position:absolute;left:11px;right:11px;bottom:10px;width:auto;height:14px}.workspace-detail .acid-meta{font-size:7px}.workspace-name-slot .acid-context-title,.workspace-name-ghost{font-size:11px}.acid-workspace-arrow{display:none}.workspace-switch-line{left:11px;right:11px;bottom:8px;height:2px}.acid-dialog{padding:18px}.acid-workspace-option{grid-template-columns:56px minmax(0,1fr) auto}.acid-palette-fields{grid-template-columns:1fr}html[data-industrial-acid] .acoR2W_panel{grid-template-columns:150px minmax(0,1fr);grid-template-rows:58px minmax(0,1fr)}html[data-industrial-acid] .acoR2W_navTitle{height:58px;width:calc(100% - 150px)}html[data-industrial-acid] .acoR2W_header{min-height:58px}.acid-settings-title{font-size:21px}}
-@media(prefers-reduced-motion:reduce){.acid-intro,.acid-fx{display:none}.acid-dialog,html[data-industrial-acid] .acoR2W_panel,html[data-industrial-acid] .wCInkW_options>*,html[data-industrial-acid] .fO69Vq_cardHead{animation:none!important}}
+@media(max-width:720px){html[data-industrial-acid]{--acid-header-height:102px}html[data-industrial-acid] .acid-masthead{grid-template-columns:minmax(0,1fr) 48px 154px 36px}.acid-menus button{justify-content:center;padding:5px 2px;font-size:10px}.acid-menus button>span:not(.acid-fx){display:none}html[data-industrial-acid] .acid-masthead[data-native-controls=false]{grid-template-columns:minmax(0,1fr) 154px}html[data-industrial-acid] .acid-wordmark{padding:9px 8px;gap:6px}.acid-brand-home{gap:5px;flex-direction:column;align-items:stretch}html[data-industrial-acid] .acid-wordmark .acid-brand-symbol{width:35px;height:35px}.acid-sidebar-toggle{height:50px;width:25px;border:0;padding:3px}.acid-wordmark-svg>svg{max-height:37px}html[data-industrial-acid] .acid-context{flex-direction:column;align-items:flex-start;padding:8px 11px;border-top-width:3px}.workspace-counter{font-size:32px;position:absolute;right:10px;top:25px}.workspace-detail{gap:0;flex:1;width:100%;align-self:stretch}.workspace-detail .workspace-name-slot{position:absolute;left:11px;right:11px;bottom:10px;width:auto;height:14px}.workspace-detail .acid-meta{font-size:7px}.workspace-name-slot .acid-context-title,.workspace-name-ghost{font-size:11px}.acid-workspace-arrow{display:none}.workspace-switch-line{left:11px;right:11px;bottom:8px;height:2px}.acid-dialog{padding:18px}.acid-workspace-option{grid-template-columns:56px minmax(0,1fr) auto}.acid-palette-fields{grid-template-columns:1fr}html[data-industrial-acid] .AnXs9G_panel{grid-template-columns:150px minmax(0,1fr);grid-template-rows:58px minmax(0,1fr)}html[data-industrial-acid] .AnXs9G_navTitle{height:58px;width:calc(100% - 150px)}html[data-industrial-acid] .AnXs9G_header{min-height:58px}.acid-settings-title{font-size:21px}}
+@media(prefers-reduced-motion:reduce){.acid-intro,.acid-fx{display:none}.acid-dialog,html[data-industrial-acid] .AnXs9G_panel,html[data-industrial-acid] .AnXs9G_options>*,html[data-industrial-acid] .V7pFBG_cardHead{animation:none!important}}
 /* night: the ACTIVE WORKSPACE block takes the current workspace's identity colour */
 html[data-industrial-acid][data-industrial-mode=night] .acid-context[data-acid-identity]{--acid-context-bg:var(--acid-ws-context);--acid-context-fore:var(--acid-ws-context-fore);background:var(--acid-ws-context)!important;color:var(--acid-ws-context-fore)!important}
 html[data-industrial-acid][data-industrial-mode=night] .acid-context[data-acid-identity] :is(.workspace-glyph,.acid-meta,.acid-context-title,.acid-workspace-arrow){color:var(--acid-ws-context-fore)!important}
 
 /* v3c: keep ACTIVE WORKSPACE clear of Windows caption buttons */
 html[data-industrial-acid][data-windows-titlebar] .acid-masthead{padding-right:138px}
-html[data-industrial-acid][data-windows-titlebar] .acid-context{min-width:0;overflow:hidden}
-html[data-industrial-acid][data-windows-titlebar] .workspace-name-slot .acid-context-title,html[data-industrial-acid][data-windows-titlebar] .workspace-name-ghost{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+html[data-industrial-acid][data-windows-titlebar] .acid-context{min-width:0;overflow:visible}
+html[data-industrial-acid][data-windows-titlebar] .workspace-name-slot .acid-context-title,html[data-industrial-acid][data-windows-titlebar] .workspace-name-ghost{max-width:100%;overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere}
 html[data-industrial-acid] .acid-wordmark,.acid-context{min-width:0}
 html[data-industrial-acid] .acid-wordmark{overflow:hidden}
 
 /* v3c: 2-col masthead (no native menus) — keep brand/context adjacent without paint overflow */
-html[data-industrial-acid] .acid-masthead[data-native-controls=false]{grid-template-columns:minmax(0,1fr) minmax(320px,520px)}
-html[data-industrial-acid][data-windows-titlebar] .acid-masthead[data-native-controls=false]{grid-template-columns:minmax(0,1.05fr) minmax(300px,480px)}
+html[data-industrial-acid] .acid-masthead[data-native-controls=false]{grid-template-columns:minmax(0,0.9fr) minmax(360px,1.1fr)}
+html[data-industrial-acid][data-windows-titlebar] .acid-masthead[data-native-controls=false]{grid-template-columns:minmax(0,0.85fr) minmax(340px,1.15fr)}
 html[data-industrial-acid] .acid-wordmark,html[data-industrial-acid] .acid-brand-home,html[data-industrial-acid] .acid-wordmark-svg{min-width:0;max-width:100%;overflow:hidden}
 html[data-industrial-acid] .acid-wordmark-svg>svg{display:block;width:auto;max-width:100%;max-height:100%}
-html[data-industrial-acid] .acid-context{min-width:0;overflow:hidden}
-html[data-industrial-acid] .workspace-detail{min-width:0;overflow:hidden}
+html[data-industrial-acid] .acid-context{min-width:0;overflow:visible}
+html[data-industrial-acid] .workspace-detail{min-width:0;overflow:visible}
 html[data-industrial-acid] .workspace-name-slot{min-width:0;max-width:100%}
-html[data-industrial-acid] .workspace-name-slot .acid-context-title{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+html[data-industrial-acid] .workspace-name-slot .acid-context-title{display:block;overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere;word-break:break-word}
 /* v3c-context-balance */
 html[data-industrial-acid] .acid-context{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding-right:16px;box-sizing:border-box}
 html[data-industrial-acid] .workspace-counter{flex:none}
 html[data-industrial-acid] .workspace-detail{min-width:0}
 html[data-industrial-acid] .acid-workspace-arrow{flex:none}
+/* v3c-title-wrap: show full workspace name, no ellipsis */
+html[data-industrial-acid] .workspace-name-slot{overflow:visible;min-height:1.25em;height:auto!important}
+html[data-industrial-acid] .workspace-detail{display:flex;flex-direction:column;justify-content:center;gap:4px;min-width:0;overflow:visible}
+html[data-industrial-acid] .acid-context-title,#workspace-name,.workspace-name-slot .acid-context-title,.workspace-name-ghost{line-height:1.25;overflow:visible!important;text-overflow:clip!important;white-space:normal!important;overflow-wrap:anywhere;word-break:break-word;max-width:none}
+/* give ACTIVE WORKSPACE more room vs brand */
+html[data-industrial-acid] .acid-masthead[data-native-controls=false]{grid-template-columns:minmax(0,0.75fr) minmax(420px,1.25fr)}
+html[data-industrial-acid][data-windows-titlebar] .acid-masthead[data-native-controls=false]{grid-template-columns:minmax(0,0.7fr) minmax(400px,1.3fr)}
