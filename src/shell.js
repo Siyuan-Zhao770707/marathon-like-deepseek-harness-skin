@@ -26,8 +26,8 @@ function WorkspaceRail(props){
     let observedFrame=null,observedSidebar=null;
     const observer=new MutationObserver(()=>sync());
     const sync=()=>{
-      const frame=[...document.querySelectorAll('.BynINW_frame')].find(node=>!node.closest('[data-acid-motion-owned]'));
-      const sidebar=frame?.querySelector('.BynINW_sidebarCol');
+      const frame=[...document.querySelectorAll('.mP3x-q_frame')].find(node=>!node.closest('[data-acid-motion-owned]'));
+      const sidebar=frame?.querySelector('.mP3x-q_sidebarCol');
       if(frame!==observedFrame||sidebar!==observedSidebar){
         observer.disconnect();observedFrame=frame;observedSidebar=sidebar;
         if(frame){observer.observe(frame,{attributes:true,attributeFilter:['data-sidebar-collapsed']});observer.observe(sidebar??frame,{childList:true,subtree:true});}
@@ -35,7 +35,7 @@ function WorkspaceRail(props){
       }
       // The collapsed native browser keeps this list area empty. Leave its
       // add/search controls, wide list and React-owned children in place.
-      const next=frame?.hasAttribute('data-sidebar-collapsed')?sidebar?.querySelector('[data-slot="sidebar.workspaces"] ._9lTDKa_listArea'):null;
+      const next=frame?.hasAttribute('data-sidebar-collapsed')?sidebar?.querySelector('[data-slot="sidebar.workspaces"] .GAkraW_listArea'):null;
       setTarget(previous=>previous===next?previous:next??null);
     };
     sync();return()=>observer.disconnect();

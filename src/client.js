@@ -143,7 +143,7 @@ window.__ModuleLoader__.load({
         const state = useAppearance();const [paletteOpen,setPaletteOpen]=React.useState(false);
         const [pinned,setPinned]=React.useState(false),drawer=React.useRef(null),bodyId=React.useId();
         // NEXT: palette, day/night and the native "More" live in a bottom drawer.
-        React.useLayoutEffect(()=>{const area=drawer.current?.closest('._2H3hWW_footArea');if(!area)return;area.setAttribute('data-acid-drawer',pinned?'open':'closed');return()=>area.removeAttribute('data-acid-drawer');},[pinned,wide]);
+        React.useLayoutEffect(()=>{const area=drawer.current?.closest('.wtg9ga_footArea');if(!area)return;area.setAttribute('data-acid-drawer',pinned?'open':'closed');return()=>area.removeAttribute('data-acid-drawer');},[pinned,wide]);
         const modes=h('div', { className: `acid-mode-switch${wide ? '' : ' acid-mode-switch-rail'}`, role: 'group', 'aria-label': t('canvas') },
             ...['paper', 'night', 'adaptive'].map(value => h('button', { key: value, type: 'button', 'data-appearance-option': value, title: t(value), 'aria-label': t(value), 'aria-pressed': state.canvas === value, onClick: () => updateAppearance({ canvas: value }) }, h(ModeIcon, { value }), wide ? h('span', null, t(value)) : null)));
         const palette=h('button',{type:'button',className:'acid-palette-shortcut',onClick:()=>setPaletteOpen(true),'aria-label':t('palette')},h('span',{className:'acid-palette-swatch','aria-hidden':true}),wide?t('palette'):null,wide?h('span',{'aria-hidden':true},'↗'):null);

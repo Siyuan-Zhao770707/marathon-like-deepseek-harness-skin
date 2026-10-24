@@ -86,3 +86,7 @@ html[data-industrial-motion=off] .acid-reason-ghost{display:none}
 .acid-reason-slider.berserk-surface .acid-reason-track,.acid-reason-slider.berserk-surface .acid-reason-flow,.acid-reason-slider.berserk-surface .acid-reason-ghost,.acid-reason-slider.berserk-surface .acid-reason-slices{display:none}
 .acid-effort-trigger[data-max]:before{content:none}
 .acid-max-value{white-space:nowrap;position:relative;font-family:var(--acid-mono)}
+/* v3c-model-bar: center model/intensity/send on composer bottom row */
+html[data-industrial-acid] .acid-model-controls{display:flex!important;align-items:center!important;gap:8px;padding-right:10px;min-height:36px;box-sizing:border-box}
+html[data-industrial-acid] .acid-model-controls .acid-model-trigger,html[data-industrial-acid] .acid-model-controls .acid-effort-trigger{display:inline-flex;align-items:center;height:32px}
+html[data-industrial-acid] [data-slot="conversation.input.right"]{display:flex!important;align-items:center!important;padding-right:8px;gap:8px}

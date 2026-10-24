@@ -27,7 +27,7 @@ function createAcceptedMotionController(getMotion) {
   const buttons = new Set(), composers = new Set(), statuses = new Map(), panels = new Map();
   const shellSurfaces=new Map(),dockBodies=new Map(),railFrames=new Map();
   const controller = new AbortController(), ease = 'cubic-bezier(.2,.78,.25,1)';
-  const panelSelector = '.acid-model-popover,.acid-dialog[open],.wCInkW_panel,[data-trigger-menu],.haSm5q_details,[role="dialog"]:not(.acid-dialog)';
+  const panelSelector = '.acid-model-popover,.acid-dialog[open],.acoR2W_panel,[data-trigger-menu],.haSm5q_details,[role="dialog"]:not(.acid-dialog)';
   let disposed = false, pendingStage, routeRun, workspaceRun, navigationFrame, observedFrame;
   const geometryObserver=new MutationObserver(()=>scanShellSurfaces());
   const localRouteSelector='.Dc7zOa_tab,[data-row-key^="session:"][role="treeitem"]';
@@ -135,11 +135,11 @@ function createAcceptedMotionController(getMotion) {
     for(const[name,value]of Object.entries(properties))if(frame.style.getPropertyValue(name)!==value)frame.style.setProperty(name,value);
   }
   function scanShellSurfaces() {
-    const frame=document.querySelector('.BynINW_frame');if(!frame)return;
+    const frame=document.querySelector('.mP3x-q_frame');if(!frame)return;
     if(observedFrame!==frame){geometryObserver.disconnect();geometryObserver.observe(frame,{attributes:true,attributeFilter:['style']});observedFrame=frame;}
     syncCompactRail(frame);
     let geometryDirection;
-    const sidebar=frame.querySelector('.BynINW_sidebarCol');
+    const sidebar=frame.querySelector('.mP3x-q_sidebarCol');
     if(sidebar){
       const state=frame.hasAttribute('data-sidebar-collapsed')?'rail':'wide',previous=shellSurfaces.get(sidebar);
       if(previous&&previous.state!==state){previous.state=state;swapSurface(previous,sidebar,'sidebar-'+state,'left-right');geometryDirection='left-right';}
@@ -180,12 +180,12 @@ function createAcceptedMotionController(getMotion) {
     return target.closest?.('.acid-sidebar-toggle,[data-sidebar-right-expand],[data-sidebar-right-toggle],[data-sidebar-right-mode],button[aria-label^="在侧边栏"]');
   }
   function captureStage(shell=false) {
-    pendingStage=snapshot(document.querySelector(shell?'.BynINW_frame':'.BynINW_centerCol'));
+    pendingStage=snapshot(document.querySelector(shell?'.mP3x-q_frame':'.mP3x-q_centerCol'));
     if(pendingStage)pendingStage.shell=shell;
   }
   function revealStage(kind='page',direction='down-up') {
     routeRun?.finish(false);
-    const stage=document.querySelector('.BynINW_centerCol');if(!stage||getMotion()==='off'||disposed)return;
+    const stage=document.querySelector('.mP3x-q_centerCol');if(!stage||getMotion()==='off'||disposed)return;
     if(pendingStage&&performance.now()-pendingStage.time<2000) {
       const captured=pendingStage;pendingStage=null;
       // The old surface remains visible until the cover is complete; the host
@@ -243,7 +243,7 @@ function createAcceptedMotionController(getMotion) {
     [...queue.children].forEach((dot,i)=>current.animate(dot,[{opacity:.15},{opacity:1,offset:.4},{opacity:.3,offset:.75},{opacity:1}],getMotion()==='quiet'?90:300,i*(getMotion()==='quiet'?50:170),'linear'));
     statuses.set(node,{text,run:current});
   }
-  function panelKind(node) { return node.matches('.haSm5q_details')?'trace':node.matches('.acid-dialog,.wCInkW_panel,dialog')?'dialog':'menu'; }
+  function panelKind(node) { return node.matches('.haSm5q_details')?'trace':node.matches('.acid-dialog,.acoR2W_panel,dialog')?'dialog':'menu'; }
   function prepare(root) {
     if(excluded(root))return;
     if(root instanceof Element&&root.matches('button'))decorateButton(root);
@@ -312,7 +312,7 @@ function createAcceptedMotionController(getMotion) {
   document.addEventListener('pointerdown',event=>{
     capturePanels(event);const button=event.target.closest('button');
     if(button&&!excluded(button)&&event.button===0)feedback(button);
-    if(button?.matches('._2H3hWW_panelRow,._2H3hWW_newSession,.acid-brand-home,.acid-workspace-option,.Dc7zOa_tab,[data-row-key]')||button?.closest('[data-slot="sidebar.workspaces"],._2H3hWW_settingsArea'))captureStage();
+    if(button?.matches('.wtg9ga_panelRow,.wtg9ga_newSession,.acid-brand-home,.acid-workspace-option,.Dc7zOa_tab,[data-row-key]')||button?.closest('[data-slot="sidebar.workspaces"],.wtg9ga_settingsArea'))captureStage();
     const route=event.target.closest(localRouteSelector);
     if(route&&route.getAttribute('aria-selected')!=='true'&&event.button===0)captureStage();
     if(shellGeometryTarget(event.target)&&event.button===0)captureStage(true);
