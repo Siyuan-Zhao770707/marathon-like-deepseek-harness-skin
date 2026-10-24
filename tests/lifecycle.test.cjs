@@ -76,6 +76,29 @@ test('day, night and adaptive token layers preserve semantic status and user pre
   }
 });
 
+
+test('native and skin appearance combinations always keep user-message bubbles readable', () => {
+  const cases = [
+    ['paper', 'light', 'day'], ['paper', 'dark', 'day'],
+    ['night', 'light', 'night'], ['night', 'dark', 'night'],
+    ['adaptive', 'light', 'day'], ['adaptive', 'dark', 'night']
+  ];
+  for (const [canvas, nativeScheme, expectedMode] of cases) {
+    const runtime = harness({ nativeScheme, storage: { 'dsh-industrial-acid-skin:canvas': canvas } });
+    runtime.exports.apply(runtime.ctx);
+    assert.equal(runtime.attributes.get('data-industrial-mode'), expectedMode);
+    const scheme = runtime.exports.makeScheme(expectedMode, runtime.exports.DEFAULT_PALETTES[expectedMode]);
+    const tokens = [...runtime.layers.values()][0].tokens;
+    const schemeKey = nativeScheme === 'dark' ? 'dark' : 'light';
+    for (const name of ['--dsw-specific-bubble', '--dsw-specific-bubble-highlight']) {
+      assert.equal(tokens[name][schemeKey], scheme.tokens[name], canvas + ' / ' + nativeScheme + ': ' + name);
+      assert.ok(runtime.exports.contrast(tokens['--dsw-alias-label-primary'][schemeKey], tokens[name][schemeKey]) >= 4.5,
+        canvas + ' / ' + nativeScheme + ': unreadable ' + name);
+    }
+    runtime.dispose();
+  }
+});
+
 test('masthead derives actual workspace ordinal, including absence and reordered workspaces', () => {
   const { exports } = harness();
   const items = [{ title: 'Alpha', sessionIds: ['a'] }, { title: 'Beta', sessionIds: ['b'] }];
@@ -201,7 +224,7 @@ test('default, preset and midtone custom palettes keep text, metadata, links and
   const custom = ['#000000', '#FFFFFF', '#777777', '#747474', '#888888', '#112233', '#C0C030'].map(color => ({ accent: color, signal: color, surface: color, text: color }));
   for (const mode of ['day', 'night']) for (const palette of [...Object.values(exports.PALETTE_PRESETS).map(p => p[mode]), ...custom]) {
     const { tokens: t, variables: v } = exports.makeScheme(mode, palette);
-    const backgrounds = ['--dsw-alias-bg-base', '--dsw-alias-bg-layer-1', '--dsw-alias-bg-layer-3', '--dsw-alias-interactive-bg-hover', '--dsw-alias-interactive-bg-hover-solid'];
+    const backgrounds = ['--dsw-alias-bg-base', '--dsw-alias-bg-layer-1', '--dsw-alias-bg-layer-3', '--dsw-alias-interactive-bg-hover', '--dsw-alias-interactive-bg-hover-solid', '--dsw-specific-bubble', '--dsw-specific-bubble-highlight'];
     for (const fg of ['--dsw-alias-label-primary', '--dsw-alias-label-secondary', '--dsw-alias-label-tertiary', '--dsw-alias-link']) for (const bg of backgrounds) assert.ok(ratio(t[fg], t[bg]) >= 4.5, `${mode} ${palette.surface} ${fg} on ${bg}`);
     for (const [fg, bg] of [['--acid-blue-fore', '--acid-blue'], ['--acid-accent-fore', '--acid-lime'], ['--acid-masthead-fore', '--acid-masthead-bg'], ['--acid-context-fore', '--acid-context-bg'], ['--acid-sidebar-fore', '--acid-sidebar-bg'], ['--acid-sidebar-secondary', '--acid-sidebar-hover'], ['--acid-sidebar-active-fore', '--acid-sidebar-active'], ['--acid-settings-nav-fore', '--acid-settings-nav-hover']]) assert.ok(ratio(v[fg], v[bg]) >= 4.5, `${mode} ${palette.surface} ${fg} on ${bg}`);
   }
