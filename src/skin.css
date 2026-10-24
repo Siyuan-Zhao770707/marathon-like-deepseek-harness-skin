@@ -136,3 +136,5 @@ html[data-industrial-acid] .ZNyiNW_span[data-timeline-span=tool],html[data-indus
 @media(max-width:900px){html[data-industrial-acid]{--acid-header-height:clamp(96px,18vh,148px)}.acid-masthead{grid-template-columns:76fr 24fr}.acid-context{padding:10px}.acid-context-number{font-size:clamp(35px,7vh,66px)}.acid-meta{font-size:9px;letter-spacing:0}.acid-context-title{font-size:11px}.acid-sidebar-signature strong{font-size:30px}html[data-industrial-acid] .AnXs9G_panel{grid-template-columns:176px minmax(0,1fr);max-width:calc(100vw - 24px)}}
 @media(max-height:650px){html[data-industrial-acid]{--acid-header-height:112px}.acid-context-number{font-size:60px}.acid-hero-mark{height:40px;width:40px;font-size:19px}html[data-industrial-acid] .WOwLGG_stack:after{font-size:38px;margin-top:8px}.acid-sidebar-signature{display:none}}
 @media(prefers-reduced-motion:reduce){html[data-industrial-acid] .acid-masthead *,html[data-industrial-acid] .acid-sidebar-signature *{animation:none;transition:none}}
+/* v3d-more-identity */
+html[data-industrial-acid] .acid-palette-swatch{background:linear-gradient(135deg,var(--acid-ws-context,var(--acid-lime)) 50%,var(--acid-blue) 50%)}
