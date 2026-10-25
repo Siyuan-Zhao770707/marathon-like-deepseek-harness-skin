@@ -189,8 +189,12 @@ function SidebarNext({items,numbers,workspaceId,onPick,t,motion,toggleSidebar}){
     const block=event=>{if((event.ctrlKey||event.metaKey)&&!event.altKey&&event.key?.toLowerCase()==='b'){event.preventDefault();event.stopImmediatePropagation();}};
     window.addEventListener('keydown',block,true);
     const frame=document.querySelector('.mP3x-q_frame');
-    if(frame?.hasAttribute('data-sidebar-collapsed')&&window.innerWidth>=760)toggleSidebar?.();
-    return()=>window.removeEventListener('keydown',block,true);
+    let queued=0;
+    const expand=()=>{if(frame?.hasAttribute('data-sidebar-collapsed')&&!queued)queued=requestAnimationFrame(()=>{queued=0;if(frame.hasAttribute('data-sidebar-collapsed'))toggleSidebar?.();});};
+    const observer=new MutationObserver(expand);
+    if(frame)observer.observe(frame,{attributes:true,attributeFilter:['data-sidebar-collapsed']});
+    expand();
+    return()=>{window.removeEventListener('keydown',block,true);observer.disconnect();if(queued)cancelAnimationFrame(queued);};
   },[]);
   const groups=list?[...list.children].filter(node=>node.classList?.contains('GAkraW_groupSection')&&node.querySelector(':scope [data-row-key^="workspace:"]')):[];
   const active=groups.length>0;

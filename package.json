@@ -1,7 +1,7 @@
 {
   "name": "dsh-industrial-acid-skin",
-  "version": "2.4.3",
-  "description": "Marathon-inspired industrial DeepSeek Harness skin with four-color daily token activity, adjustable thresholds, palette-driven motion, and random Max effects.",
+  "version": "2.4.6",
+  "description": "Marathon-inspired DeepSeek Harness skin with color-strip or classic workspaces, palette-driven MORE motion, daily token activity, and random Max effects.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/yasneg616/marathon-like-deepseek-harness-skin.git"

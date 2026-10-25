@@ -1,5 +1,6 @@
 // The host owns state and text. These effects own only disposable visual layers.
 let activeAcceptedMotion;
+const COMPOSER_SELECTOR='[data-composer-card=true],.RlGAzG_card';
 const ACCEPTED_MOTION = Object.freeze({hover:300,press:380,page:600,workspace:560,menu:500,dialog:600,composer:360,trace:500,signal:1200});
 function acceptedDuration(kind, motion) { return motion === 'off' ? 0 : Math.round(ACCEPTED_MOTION[kind] * (motion === 'quiet' ? .3 : 1)); }
 function nativeRightTrack(columns) { return Number(/minmax\(0px,\s*([\d.]+)px\)\s*$/.exec(columns)?.[1]??0); }
@@ -248,8 +249,8 @@ function createAcceptedMotionController(getMotion) {
     if(excluded(root))return;
     if(root instanceof Element&&root.matches('button'))decorateButton(root);
     for(const button of root.querySelectorAll?.('button')||[])decorateButton(button);
-    if(root instanceof Element&&root.matches('.RlGAzG_card'))decorateComposer(root);
-    for(const composer of root.querySelectorAll?.('.RlGAzG_card')||[])decorateComposer(composer);
+    if(root instanceof Element&&root.matches(COMPOSER_SELECTOR))decorateComposer(root);
+    for(const composer of root.querySelectorAll?.(COMPOSER_SELECTOR)||[])decorateComposer(composer);
   }
   function scanPanels() {
     scanShellSurfaces();
@@ -331,12 +332,12 @@ function createAcceptedMotionController(getMotion) {
       navigationFrame=requestAnimationFrame(()=>{navigationFrame=undefined;if(pendingStage)revealStage('page');});
     }
   },{signal:controller.signal});
-  document.addEventListener('focusin',event=>{const card=event.target.closest('.RlGAzG_card');if(card&&event.target.matches('textarea,[contenteditable=true],[contenteditable=""]'))focusComposer(card);},{signal:controller.signal});
-  document.addEventListener('focusout',event=>{const card=event.target.closest('.RlGAzG_card');if(card&&!card.contains(event.relatedTarget))card.classList.remove('acid-composer-focused');},{signal:controller.signal});
+  document.addEventListener('focusin',event=>{const card=event.target.closest(COMPOSER_SELECTOR);if(card&&event.target.matches('[data-composer-input=true],textarea,[contenteditable=true],[contenteditable=""]'))focusComposer(card);},{signal:controller.signal});
+  document.addEventListener('focusout',event=>{const card=event.target.closest(COMPOSER_SELECTOR);if(card&&!card.contains(event.relatedTarget))card.classList.remove('acid-composer-focused');},{signal:controller.signal});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)cancel();},{signal:controller.signal});
   const api={revealStage,captureStage,cancel,cancelWorkspace,calibrateWorkspace,mask,
     closeSurface(node,done,kind='menu'){if(node?.dataset.acidClosing)return;return mask(node,{mode:'close',kind,done});},
-    reopenSurface(node){surfaces.get(node)?.finish(false);mask(node,{kind:panelKind(node)});},
+    reopenSurface(node){surfaces.get(node)?.finish(false);return mask(node,{kind:panelKind(node)});},
     dispose(){disposed=true;controller.abort();observer.disconnect();geometryObserver.disconnect();cancel();
       for(const button of buttons){button.querySelector(':scope > .acid-fx')?.remove();button.classList.remove('acid-layered','acid-layer-positioned');delete button.dataset.acidFeedback;}
       for(const composer of composers){composer.querySelector(':scope > .acid-composer-fx')?.remove();composer.classList.remove('acid-accepted-composer','acid-composer-focused');}

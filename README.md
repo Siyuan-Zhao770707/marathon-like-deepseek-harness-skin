@@ -4,11 +4,35 @@
 
 从 Marathon 的大色块、硬边界和工业排版开始：字标切开，按钮收方，工作区放上三位数字。正文留出空间，切换时让颜色沿着界面的方向走。
 
-`v2.4.3` · `Windows` · `Harness 0.2.0-rc.2 / 0.2.1（含 RC）`
+`v2.4.6` · `Windows` · `Harness 0.2.0-rc.2 / 0.2.1（含 RC）`
 
-![皮肤设计全貌，独立展示页](docs/media/overview.jpg)
+[下载 2.4.6](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.6) · [安装与回退](docs/INSTALL.md) · [本次更新](docs/RELEASE-v2.4.6.md)
 
-图片和 **19 组 GIF** 录自独立展示页，都是 **1×**。动效、字体、配色与 token 活动分档算法来自正式插件；页面外壳、工作区名称、模型目录、内容和用量计数使用展示样例。展示页不连接真实会话。
+![2.4.6 新版色条工作区与竖排窗口按钮，独立展示页](docs/media/next-overview.png)
+
+## 2.4.6：工作区收进色条
+
+**新版色条。** 113px 侧栏，两列色条错位排列。每个工作区保留自己的编号和识别色；悬停或键盘聚焦时，会话卡片从旁边展开。黑夜是黑底白字，白天是白底深字。
+
+![新版色条、工作区切换与黑白悬停卡片](docs/media/20-next-sidebar.gif)
+
+**经典工作区随时切回。** 在「调色盘 → 工作区样式」选择经典或新版，立即生效并在本机保存。经典侧栏的四个按钮改成紧凑的 2×2，新会话保持高亮，让列表多留一些空间。2.4.6 也修复了经典单列表切回新版色条失效的问题，重新加载时会修正旧的冲突状态。
+
+![调色盘中来回切换经典工作区与新版色条，经典按钮采用田字排列](docs/media/21-classic-switch.gif)
+
+**MORE 跟着调色盘走。** 底部条纹、更多入口和四色遮罩使用当前配色。展开和收起都有转场，再点一次或按 Escape 收回；菜单使用实色背景，修复展开后的黑色遮挡。窄窗口也保留入口。
+
+![MORE 展开收起、更多菜单与调色盘联动](docs/media/22-more-palette.gif)
+
+**输入框和窗口按钮。** 消息输入框恢复矩形边框、切角、信号灯与聚焦反馈。右上角的最小化、最大化／还原、关闭按竖向排列；Windows 原生操作需要安装 Release 中的可选标题栏适配器，现已支持核对过哈希的 `0.2.1-rc.3`。
+
+![消息输入框聚焦时的边框、厚角和状态灯](docs/media/composer-2.4.6.png)
+
+**产出文件随明暗模式换色。** 浅色模式的文档、图片产出卡片与变更摘要使用浅色卡面，避免黑框黑字；工作区当前项的白色小箭头加上深色包边，在各种识别色上都看得清。
+
+![浅色产出文件卡片和带包边的工作区箭头，虚构文件展示](docs/media/deliverables-day.png)
+
+图片和 **22 组 GIF** 录自独立展示页，都是 **1×**。样式、字体、配色、编号排布与动效来自正式插件；页面外壳、工作区、会话名称和用量计数使用虚构数据。展示页不连接 Harness。早期 GIF 保留对应动效的局部展示，当前工作区布局以上方 2.4.6 图片为准。
 
 ## 先看颜色和字
 
@@ -132,18 +156,18 @@
 
 ## 安装
 
-1. 下载 [v2.4.3 发布包](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.3) 中的 `dsh-industrial-acid-skin-2.4.3.tgz`，或按[构建步骤](docs/INSTALL.md#构建与测试)从本仓库源码运行 `npm run build` 和 `npm pack`，从源码生成相同文件。历史公开版本见 [Releases](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases)。
-2. 打开 Harness「插件 → 添加插件」，在**包名或地址**输入框中粘贴下面的完整 `.tgz` 下载地址并安装（也可先下载文件，再输入它在本机的**绝对路径**，例如 `C:\Users\你的用户名\Downloads\dsh-industrial-acid-skin-2.4.3.tgz`）：
+1. 下载 [v2.4.6 发布包](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.6) 中的 `dsh-industrial-acid-skin-2.4.6.tgz`，或按[构建步骤](docs/INSTALL.md#构建与测试)从源码生成。历史版本见 [Releases](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases)。
+2. 打开 Harness「插件 → 添加插件」，在**包名或地址**输入框粘贴下方完整下载地址（也可先下载，再输入本机的**绝对路径**，例如 `C:\Users\你的用户名\Downloads\dsh-industrial-acid-skin-2.4.6.tgz`）：
 
    ```text
-   https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/download/v2.4.3/dsh-industrial-acid-skin-2.4.3.tgz
+   https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/download/v2.4.6/dsh-industrial-acid-skin-2.4.6.tgz
    ```
 
-   **不要输入** `dsh-industrial-acid-skin-2.4.3`：这不是 npm 注册表中的插件包名，Harness 会提示「未找到相关插件」。下载文件但只输入文件名也不会自动读取本地文件。
+   输入框不会按文件名搜索 GitHub Release；只输入 `dsh-industrial-acid-skin-2.4.6` 会触发 npm 查询并提示「未找到相关插件」。请使用完整 URL 或本机绝对路径。
 3. 安装完成后点「立即启用」；如 Harness 提示需要重启，则重启客户端。
-3. 在侧栏调色盘，或「设置 → 通用设置 → 皮肤外观」里调整颜色和动效。
+4. 在侧栏调色盘，或「设置 → 通用设置 → 皮肤外观」里调整颜色、动效和工作区样式。
 
-本次桌面验证环境为 **Windows / Harness 0.2.1-rc.2**，兼容声明覆盖 0.2.0-rc.2 至 0.2.1（含 RC）。可选标题栏适配器也已支持已核对哈希的 0.2.1-rc.2，可将最小化、最大化／还原和关闭按钮恢复为右上角竖排。安装、构建和回退步骤放在 [安装与开发](docs/INSTALL.md) 里。
+本次桌面验证环境为 **Windows / Harness 0.2.1-rc.3**，兼容声明覆盖 0.2.0-rc.2 至 0.2.1（含 RC）。合并 2.4.3 的消息气泡可读性修复后，**51 项自动测试通过**；经典单列表切回色条另有 **18 项真实界面检查**，产出卡片与箭头再通过 **8 项检查**。真实界面记录留在本机，公开展示使用虚构数据。
 
 想自己拨一拨滑块、试一下切换，可以运行仓库里的展示页：
 
@@ -151,7 +175,7 @@
 node tools/serve-showcase.cjs
 ```
 
-打开 [本地动效展示页](http://127.0.0.1:19411/?controls=1)。它使用展示数据，不连接 Harness。字体与 SVG 内置，皮肤资源可以离线加载。
+打开 [新版工作区展示](http://127.0.0.1:19411/docs/showcase/next.html) 或 [动效展示页](http://127.0.0.1:19411/?controls=1)。字体与 SVG 内置，皮肤资源可以离线加载。
 
 设计方向参考 [Marathon](https://marathonthegame.com/zh-chs)。这是非官方皮肤，与 DeepSeek、Bungie 或 Marathon 没有隶属关系；不包含 Marathon 官网代码或游戏素材。
 

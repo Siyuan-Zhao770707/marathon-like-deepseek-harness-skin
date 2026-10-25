@@ -1,22 +1,42 @@
 # 安装与开发
 
+## 2.4.6 工作区样式切换修复
+
+从经典模式的单列表切回新版色条时，皮肤通过原生分组动作恢复“按工作区”。保存为新版色条但原生仍是单列表的旧状态，在重新加载插件或页面时同样修正。经典模式的单列表功能保留，工作区与会话数据不变。
+
+同时补齐 rc.3 产出文件与变更摘要卡片的明暗配色，浅色模式采用浅色卡面与深色文字；选中工作区的白色箭头增加深色包边。
+
+在现有真实会话中完成 8 项检查：确认三张产出文件卡片在浅色模式为浅白底、深色模式为深底，标题及说明文字对比度均超过 4.5:1，选中箭头有独立的深色外框；页面脚本错误为零。检查后恢复原外观偏好。
+
+## 2.4.5 工作区与输入框修复
+
+经典样式的“新会话 / 插件 / 自动化任务 / 更多”按 2×2 排列；新会话保持调色盘高亮。消息输入框使用原生 `data-composer-card` 标记挂载矩形装饰、信号灯和聚焦反馈，同时兼容旧版类名。
+
+新版色条下的 MORE 使用现有四色遮罩展开与收起，支持快速反向操作和停用动效。悬停卡片在黑夜模式使用黑底白字，白天模式使用白底深字。平铺会话列表自动使用普通页脚，避免 MORE 跨出侧栏。
+
+## 2.4.4 工作区与桌面适配
+
+“调色盘”或“设置 → 通用设置 → 皮肤外观”中的“工作区样式”可立即切换“新版色条”和“经典工作区”，选择会在本地保存。MORE 条纹和更多按钮跟随当前明暗调色盘，菜单使用实色背景，避免 Electron 背景模糊产生黑色遮挡。
+
+窗口竖排按钮需要安装下方桌面适配器。新增支持已核对的 DSH `0.2.1-rc.3` 原始 archive，SHA256 为 `04b32e3a872826ba15cfb2081c6a929a8d4ecaa65e09a2543e5a6b30e2eff1f0`，只更改两个桌面入口并自动备份。未安装桥接时保留应用原生窗口按钮。
+
 ## 安装
 
-1. 优先从 [v2.4.3 Release](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.3) 下载运行包，也可从本仓库源码运行下方构建命令生成 `dsh-industrial-acid-skin-2.4.3.tgz`。历史公开版本见 [Releases](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases)。
+1. 优先从 [v2.4.6 Release](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.6) 下载运行包，也可从本仓库源码运行下方构建命令生成 `dsh-industrial-acid-skin-2.4.6.tgz`。历史版本见 [Releases](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases)。
 2. 在 Harness「插件 → 添加插件」的**包名或地址**输入框粘贴下方的 `.tgz` 完整 URL 后安装，完成后点击「立即启用」（提示重启时重启）：
 
    ```text
-   https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/download/v2.4.3/dsh-industrial-acid-skin-2.4.3.tgz
+   https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/download/v2.4.6/dsh-industrial-acid-skin-2.4.6.tgz
    ```
 
-   或先从 Release 下载 `.tgz`，输入下载文件的**本机绝对路径**，例如 `C:\Users\你的用户名\Downloads\dsh-industrial-acid-skin-2.4.3.tgz`。Harness 的输入框接受 npm 包名、Git 地址、tarball URL 或本地路径；**不提供按文件名自动搜索 GitHub Release 的功能**。因此只输入 `dsh-industrial-acid-skin-2.4.3` 会被当作 npm 包名查询并出现「未找到相关插件」，这不表示发布包失效。
-3. 在侧栏底部的调色盘或“设置 → 通用设置 → 皮肤外观”调整颜色和动效。
+   或先从 Release 下载 `.tgz`，输入下载文件的**本机绝对路径**，例如 `C:\Users\你的用户名\Downloads\dsh-industrial-acid-skin-2.4.6.tgz`。Harness 的输入框接受 npm 包名、Git 地址、tarball URL 或本地路径；不提供按文件名自动搜索 GitHub Release 的功能。只输入 `dsh-industrial-acid-skin-2.4.6` 会触发 npm 查询并出现「未找到相关插件」，这不表示发布包失效。
+3. 在侧栏底部的调色盘或“设置 → 通用设置 → 皮肤外观”调整颜色、动效和工作区样式。新版色条的调色盘入口在底部 MORE 抽屉里。
 
 运行包内置字体、SVG 和编译后的客户端，皮肤资源可离线加载。插件包名保留 `dsh-industrial-acid-skin`，便于现有安装升级并保留外观偏好。
 
-核心皮肤使用 `ctx.theme.overrideTokens` 和原生扩展槽。2.4.3 延续 DSH `>=0.2.0-rc.2 <0.2.2-0`，包含 0.2.1 的 RC 与正式版；本次实际桌面验证版本为 0.2.1-rc.2。更高版本需要重新核对接口。更新插件无需修改应用 archive。
+核心皮肤使用 `ctx.theme.overrideTokens` 和原生扩展槽。2.4.6 延续 DSH `>=0.2.0-rc.2 <0.2.2-0`，包含 0.2.1 的 RC 与正式版；本次实际桌面验证版本为 0.2.1-rc.3。更高版本需要重新核对接口。更新插件无需修改应用 archive。
 
-Windows 运行窗口图标沿用 2.4.1 的可撤销实现，停用插件时恢复原图标。下述标题栏适配器支持已核对哈希的原始 0.2.0-rc.2 与 0.2.1-rc.2；它是运行包之外的可选桌面适配步骤。
+Windows 运行窗口图标沿用 2.4.1 的可撤销实现，停用插件时恢复原图标。下述标题栏适配器支持已核对哈希的原始 0.2.0-rc.2、0.2.1-rc.2 与 0.2.1-rc.3；它是运行包之外的可选步骤，也单独打包在 Release 的 `dsh-industrial-caption-adapter-2.4.6.zip` 中，使用方法见[适配器说明](DESKTOP-ADAPTER.md)。
 
 ## 构建与测试
 
@@ -33,7 +53,9 @@ npm pack
 
 `npm pack` 生成可导入的 `.tgz` 运行包。仓库提交了 `lib/client.js`，可以检查构建前后的差异。
 
-42 项自动测试覆盖插件撤销、配色与对比度、工作区编号及选择、原生桥接权限、模型与推理等级、随机 Max 轮次、连续位置提交、遮罩方向与色块，以及侧栏和分栏边界。新增检查包括 token 界限、等号边界、北京时间与闰年、缓存输入、分叉继承排除、跨工作区和子代理合计、失败提示、查询释放与轮询撤销。新增折叠状态测试覆盖偏好保存、重新挂载、多窗口同步及存储不可用时的降级。自动测试使用宿主模拟环境，不能替代真实 Electron 窗口的兼容性验证。
+51 项自动测试覆盖插件撤销、配色与消息气泡对比度、工作区编号及识别色、经典与新版切换、原生桥接权限、模型与推理等级、随机 Max、遮罩方向与侧栏边界，以及 token 分档、日期、统计、折叠与释放。2.4.6 新增经典单列表切回新版色条的分组恢复检查。自动测试使用宿主模拟环境，真实 Electron 窗口另行验证。
+
+2.4.6 在 Windows / DSH 0.2.1-rc.3 通过 18 项切换检查，包括连续三轮经典单列表 → 新版色条、刷新后恢复、MORE 与悬停卡片；2.4.5 另通过 19 项布局检查，包括 2×2 按钮、输入框聚焦、MORE 遮罩与快速反向操作、黑白卡片、520×600 和 800×600 窗口。未发送会话消息。桌面窗口按钮在 2.4.4 验证了竖排、最小化、最大化／还原、关闭到后台与再次显示。公开 GIF 采用隔离展示页中的虚构内容。
 
 2.4.0 另在真实本机 Host 的 Edge 页面检查了活动图、界限保存、四色联动、断线恢复、收起侧栏、390–1586 像素窗口、原生指令菜单以及插件停用和重新启用；独立解析本机历史日志，对最近 18 周逐日核对一致。验证未发送会话消息，未单独捕获 Electron 原生窗口。示例 GIF 使用独立展示计数。
 
@@ -78,11 +100,12 @@ $env:DSH_DESKTOP_DIR = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness'
 node tools/desktop-bridge.cjs install
 ```
 
-可先运行 `node tools/desktop-bridge.cjs check` 做只读校验；已安装时会核对当前文件和原始备份。适配器只接受以下两个已验证版本的原始 archive：
+可先运行 `node tools/desktop-bridge.cjs check` 做只读校验；已安装时会核对当前文件和原始备份。适配器只接受以下三个已验证版本的原始 archive：
 
 ```text
 0.2.0-rc.2  983ca71114e6dfd353fc79af5a1f9481a250ee64c2a3c757673029b811b23bc2
 0.2.1-rc.2  47874618bf5b3011fcaac10cd4c85f69da333e70d4f99b921207c78d0999512a
+0.2.1-rc.3  04b32e3a872826ba15cfb2081c6a929a8d4ecaa65e09a2543e5a6b30e2eff1f0
 ```
 
 写入前自动备份到安装目录的 `_backups/`，校验未改动文件并记录本机恢复路径。版本或哈希不匹配时拒绝写入。停用皮肤后提供横向窗口按钮回退；安装到其他机器时，需要在那里重新生成备份。
@@ -102,6 +125,7 @@ node tools/desktop-bridge.cjs restore
 | 路径 | 用途 |
 | --- | --- |
 | `src/shell.js`、`src/workspaces.js` | 标题栏、原生操作、工作区编号与窄栏选择 |
+| `src/sidebar-next.js`、`src/sidebar-next.css` | 新版工作区色条、识别色、悬停会话卡片与 MORE |
 | `src/accepted-motion.js`、`src/accepted-motion.css` | 往返遮罩、反馈、校准和动画清理 |
 | `src/max-berserk.js` | 三种随机 Max 渲染与轮次策略 |
 | `src/model-controls.js`、`src/model-controls.css` | 原生模型选择和推理滑块 |

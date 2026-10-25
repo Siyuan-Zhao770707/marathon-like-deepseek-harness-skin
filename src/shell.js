@@ -52,7 +52,7 @@ function Masthead(props){
   const context=React.useRef(null),previous=React.useRef(null);
   const [picker,setPicker]=React.useState(false),[nativeState,setNativeState]=React.useState(null);
   const appearance=props.useAppearance(),native=window.dshDesktop?.windowControls;
-  const winChrome=!!native||document.documentElement.hasAttribute('data-windows-titlebar');
+  const winChrome=!!native;
   React.useEffect(()=>{if(!native)return;let alive=true;const refresh=()=>native.invoke('state').then(state=>{if(alive)setNativeState(state);}).catch(()=>{});refresh();window.addEventListener('resize',refresh);return()=>{alive=false;window.removeEventListener('resize',refresh);};},[native]);
   React.useLayoutEffect(()=>{
     const root=document.documentElement;
@@ -80,13 +80,13 @@ function Masthead(props){
       h('span',{className:'workspace-counter'},h('strong',{className:'acid-context-number workspace-index',id:'workspace-index'},'—')),
       h('span',{className:'workspace-detail'},h('span',{className:'acid-meta'},'ACTIVE WORKSPACE'),h('span',{className:'workspace-name-slot'},h('span',{className:'acid-context-title',id:'workspace-name',title:workspace?.title},props.t('none')))),h('span',{className:'acid-workspace-arrow','aria-hidden':true},'↗')),
     winChrome?h('div',{className:'acid-window-controls','data-acid-chrome':'vertical'},h('button',{type:'button','aria-label':'最小化',title:'最小化',onClick:()=>windowAction('minimize')},'−'),h('button',{type:'button','aria-label':nativeState?.maximized?'还原':'最大化',title:nativeState?.maximized?'还原':'最大化',onClick:()=>windowAction('maximize')},nativeState?.maximized?'▣':'□'),h('button',{type:'button','aria-label':'关闭',title:'关闭',onClick:()=>windowAction('close')},'×')):null),
-    h(WorkspaceRail,{items:ordered,numbers,workspaceId:workspace?.workspaceId,t:props.t,onPick:id=>{
+    appearance.sidebarStyle==='classic'?h(WorkspaceRail,{items:ordered,numbers,workspaceId:workspace?.workspaceId,t:props.t,onPick:id=>{
       if(id===workspace?.workspaceId){props.goHome();return;}
       props.motion()?.captureStage();props.pickWorkspace(id);
-    }}),
-    h(SidebarNext,{items,numbers,workspaceId:workspace?.workspaceId,t:props.t,motion:props.motion,toggleSidebar:props.toggleSidebar,onPick:id=>{
+    }}):null,
+    appearance.sidebarStyle!=='classic'?h(SidebarNext,{items,numbers,workspaceId:workspace?.workspaceId,t:props.t,motion:props.motion,toggleSidebar:props.toggleSidebar,onPick:id=>{
       if(id===workspace?.workspaceId){props.goHome();return;}
       props.motion()?.captureStage();props.pickWorkspace(id);
-    }}),
+    }}):null,
     picker?h(NativeDialog,{title:props.t('workspace'),className:'acid-workspace-dialog',onClose:()=>setPicker(false)},...ordered.map((item,i)=>h('button',{key:item.workspaceId,type:'button',className:'acid-workspace-option','data-acid-workspace':item.workspaceId,'aria-pressed':workspace?.workspaceId===item.workspaceId,onClick:()=>{setPicker(false);props.pickWorkspace(item.workspaceId);}},h('span',null,formatWorkspaceIndex(numbers[String(item.workspaceId)]??i+1)),h('strong',null,item.title||item.path?.split(/[\\/]/).filter(Boolean).at(-1)||props.t('none')),h('span',{'aria-hidden':true},workspace?.workspaceId===item.workspaceId?'↗':'+')))):null);
 }

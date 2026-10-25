@@ -16,6 +16,8 @@ window.__ModuleLoader__.load({
     const PREF = `${ID}:canvas`;
     const PALETTE_PREF = `${ID}:palettes`;
     const MOTION_PREF = `${ID}:motion`;
+    const SIDEBAR_PREF = `${ID}:sidebar-style`;
+    const normalizeSidebar = value => value === 'classic' ? 'classic' : 'next';
     const NS = 'industrial.acid';
     /*__PALETTE_CORE__*/
     /*__TOKEN_ACTIVITY_CORE__*/
@@ -23,6 +25,9 @@ window.__ModuleLoader__.load({
       zh: { 'workspace': '工作区', 'none': '未选择工作区', 'plugins': '插件', 'settings': '设置', 'canvas': '皮肤外观', 'canvas.description': '白天与黑天切换整套皮肤；跟随应用使用原有外观设置。', 'paper': '白天', 'night': '黑天', 'adaptive': '跟随应用', 'local': '本地工作区', 'palette': '调色盘', 'palette.description': '调整即生效，白天与黑天分别保存。', 'accent': '酸性色', 'signal': '交互色', 'surface': '阅读背景', 'text': '正文色', 'acid': '经典酸性', 'orange': '工业橙', 'polar': '极地信号', 'reset': '恢复默认', 'contrast': '正文对比度', 'adjusted': '已增强正文对比度，实际颜色', 'hex': 'HEX 色值', 'motion': '动效', 'full': '完整', 'quiet': '克制', 'off': '停止' },
       en: { 'workspace': 'WORKSPACE', 'none': 'No workspace selected', 'plugins': 'Plugins', 'settings': 'Settings', 'canvas': 'Skin appearance', 'canvas.description': 'Day and night switch the entire skin. Follow app uses the existing appearance setting.', 'paper': 'Day', 'night': 'Night', 'adaptive': 'Follow app', 'local': 'LOCAL WORKSPACE', 'palette': 'Palette', 'palette.description': 'Updates immediately. Day and night palettes are saved separately.', 'accent': 'Acid accent', 'signal': 'Interaction', 'surface': 'Reading canvas', 'text': 'Text', 'acid': 'Classic acid', 'orange': 'Industrial orange', 'polar': 'Polar signal', 'reset': 'Reset palette', 'contrast': 'Text contrast', 'adjusted': 'Text contrast enhanced; effective color', 'hex': 'HEX color', 'motion': 'Motion', 'full': 'Full', 'quiet': 'Quiet', 'off': 'Off' }
     };
+
+    Object.assign(dictionaries.zh, { 'sidebarStyle': '工作区样式', 'sidebarStyle.description': '切换后立即生效，并保留现有工作区和会话。', 'sidebarStyle.next': '新版色条', 'sidebarStyle.classic': '经典工作区' });
+    Object.assign(dictionaries.en, { 'sidebarStyle': 'Workspace style', 'sidebarStyle.description': 'Applies immediately and keeps existing workspaces and conversations.', 'sidebarStyle.next': 'Color strips', 'sidebarStyle.classic': 'Classic workspaces' });
 
     // Semantic statuses are intentionally owned by the original application.
     function tokenOverrides(canvas, inputPalettes) {
@@ -44,13 +49,17 @@ window.__ModuleLoader__.load({
     }
 
     function apply(ctx, config = {}) {
-      let preferences = { canvas: normalizeCanvas(config.canvas), palettes: normalizePalettes(), motion: 'full' };
+      let preferences = { canvas: normalizeCanvas(config.canvas), palettes: normalizePalettes(), motion: 'full', sidebarStyle: 'next' };
       try {
         const stored = localStorage.getItem(PREF);
         if (['paper', 'night', 'adaptive'].includes(stored)) preferences.canvas = stored;
       } catch { /* Storage can be unavailable in a private browser context. */ }
       try { preferences.palettes = normalizePalettes(JSON.parse(localStorage.getItem(PALETTE_PREF))); } catch { /* Recover a malformed palette with safe defaults. */ }
       try { const storedMotion=localStorage.getItem(MOTION_PREF);if(['full','quiet','off'].includes(storedMotion))preferences.motion=storedMotion; } catch {}
+      try { preferences.sidebarStyle = normalizeSidebar(localStorage.getItem(SIDEBAR_PREF)); } catch {}
+      // Strips need the native workspace rows; classic lists may have selected flat grouping.
+      const activateSidebar=style=>{if(style==='next')ctx.uiWorkspace?.view?.setGroupBy?.('workspace');};
+      ctx.effect(()=>activateSidebar(preferences.sidebarStyle),`${ID}: workspace grouping`);
       const reduce=window.matchMedia?.('(prefers-reduced-motion: reduce)');
       const getMotion=()=>reduce?.matches?'off':preferences.motion;
       let motionController;
@@ -73,19 +82,21 @@ window.__ModuleLoader__.load({
           document.documentElement.setAttribute('data-industrial-motion',getMotion());
           if(getMotion()==='off')motionController?.cancel();
         }
-        if (view.canvas !== preferences.canvas || view.palettes !== preferences.palettes || view.mode !== mode || view.motion !== preferences.motion || view.effectiveMotion !== getMotion()) {
+        if (view.canvas !== preferences.canvas || view.palettes !== preferences.palettes || view.mode !== mode || view.motion !== preferences.motion || view.effectiveMotion !== getMotion() || view.sidebarStyle !== preferences.sidebarStyle) {
           view = { ...preferences, mode, effectiveMotion: getMotion() };
           for (const listener of listeners) listener();
         }
       }
       function updateAppearance(next) {
-        const updated = { canvas: normalizeCanvas(next.canvas ?? preferences.canvas), palettes: normalizePalettes(next.palettes ?? preferences.palettes), motion: ['full','quiet','off'].includes(next.motion)?next.motion:preferences.motion };
+        const updated = { canvas: normalizeCanvas(next.canvas ?? preferences.canvas), palettes: normalizePalettes(next.palettes ?? preferences.palettes), motion: ['full','quiet','off'].includes(next.motion)?next.motion:preferences.motion, sidebarStyle: normalizeSidebar(next.sidebarStyle ?? preferences.sidebarStyle) };
+        if(next.sidebarStyle==='next')activateSidebar('next');
         if (JSON.stringify(updated) === JSON.stringify(preferences)) return;
         preferences = updated;
         try {
           localStorage.setItem(PREF, preferences.canvas);
           localStorage.setItem(PALETTE_PREF, JSON.stringify(preferences.palettes));
           localStorage.setItem(MOTION_PREF, preferences.motion);
+          localStorage.setItem(SIDEBAR_PREF, preferences.sidebarStyle);
         } catch { /* Changes remain usable in this session if storage is blocked. */ }
         refreshTokens?.();
       }
@@ -115,9 +126,10 @@ window.__ModuleLoader__.load({
       ctx.on('theme/change', syncAppearance);
       ctx.effect(() => {
         const onStorage = event => {
-          if (event.key !== PREF && event.key !== PALETTE_PREF && event.key !== MOTION_PREF && event.key !== null) return;
+          if (event.key !== PREF && event.key !== PALETTE_PREF && event.key !== MOTION_PREF && event.key !== SIDEBAR_PREF && event.key !== null) return;
           try {
-            preferences = { canvas: normalizeCanvas(localStorage.getItem(PREF) ?? config.canvas), palettes: normalizePalettes(JSON.parse(localStorage.getItem(PALETTE_PREF))), motion: ['full','quiet','off'].includes(localStorage.getItem(MOTION_PREF))?localStorage.getItem(MOTION_PREF):'full' };
+            preferences = { canvas: normalizeCanvas(localStorage.getItem(PREF) ?? config.canvas), palettes: normalizePalettes(JSON.parse(localStorage.getItem(PALETTE_PREF))), motion: ['full','quiet','off'].includes(localStorage.getItem(MOTION_PREF))?localStorage.getItem(MOTION_PREF):'full', sidebarStyle: normalizeSidebar(localStorage.getItem(SIDEBAR_PREF)) };
+            if(event.key===SIDEBAR_PREF||event.key===null)activateSidebar(preferences.sidebarStyle);
             refreshTokens?.();
           } catch { /* Keep the last usable colors after malformed external data. */ }
         };
@@ -142,16 +154,20 @@ window.__ModuleLoader__.load({
       function AppearanceFooter({ wide, t }) {
         const state = useAppearance();const [paletteOpen,setPaletteOpen]=React.useState(false);
         const [pinned,setPinned]=React.useState(false),drawer=React.useRef(null),bodyId=React.useId();
+        const [rail,setRail]=React.useState(document.documentElement.getAttribute('data-acid-sidebar')==='next'),transition=React.useRef(null);
+        React.useLayoutEffect(()=>{const root=document.documentElement,sync=()=>setRail(root.getAttribute('data-acid-sidebar')==='next');const observer=new MutationObserver(sync);observer.observe(root,{attributes:true,attributeFilter:['data-acid-sidebar']});sync();return()=>observer.disconnect();},[]);
+        React.useEffect(()=>()=>transition.current?.finish(false),[]);
+        const changeDrawer=open=>{const area=drawer.current?.closest('.wtg9ga_footArea');if(open){if(area?.dataset.acidClosing)transition.current=activeAcceptedMotion?.reopenSurface(area);setPinned(true);}else if(area&&activeAcceptedMotion)transition.current=activeAcceptedMotion.closeSurface(area,()=>setPinned(false));else setPinned(false);};
         // NEXT: palette, day/night and the native "More" live in a bottom drawer.
-        React.useLayoutEffect(()=>{const area=drawer.current?.closest('.wtg9ga_footArea');if(!area)return;area.setAttribute('data-acid-drawer',pinned?'open':'closed');return()=>area.removeAttribute('data-acid-drawer');},[pinned,wide]);
+        React.useLayoutEffect(()=>{const area=drawer.current?.closest('.wtg9ga_footArea');if(!area||state.sidebarStyle!=='next'||!rail)return;area.setAttribute('data-acid-drawer',pinned?'open':'closed');if(pinned)transition.current=activeAcceptedMotion?.mask(area,{kind:'menu'});return()=>{transition.current?.finish(false);area.removeAttribute('data-acid-drawer');};},[pinned,wide,state.sidebarStyle,rail]);
         const modes=h('div', { className: `acid-mode-switch${wide ? '' : ' acid-mode-switch-rail'}`, role: 'group', 'aria-label': t('canvas') },
             ...['paper', 'night', 'adaptive'].map(value => h('button', { key: value, type: 'button', 'data-appearance-option': value, title: t(value), 'aria-label': t(value), 'aria-pressed': state.canvas === value, onClick: () => updateAppearance({ canvas: value }) }, h(ModeIcon, { value }), wide ? h('span', null, t(value)) : null)));
         const palette=h('button',{type:'button',className:'acid-palette-shortcut',onClick:()=>setPaletteOpen(true),'aria-label':t('palette')},h('span',{className:'acid-palette-swatch','aria-hidden':true}),wide?t('palette'):null,wide?h('span',{'aria-hidden':true},'↗'):null);
         const dialog=paletteOpen?h(NativeDialog,{title:t('palette'),onClose:()=>setPaletteOpen(false)},h(CanvasRow,{t,prefix:'acid-dialog'})):null;
-        if(!wide)return h('div', { className: 'acid-footer' }, h(TokenActivity, { wide, t, store: activityStore, useAppearance }),modes,palette,dialog);
+        if(!wide||state.sidebarStyle==='classic'||!rail)return h('div', { className: 'acid-footer' }, h(TokenActivity, { wide, t, store: activityStore, useAppearance }),modes,palette,dialog);
         return h('div', { className: 'acid-footer' }, h(TokenActivity, { wide, t, store: activityStore, useAppearance }),
-          h('div',{ref:drawer,className:'acid-drawer',onKeyDown:event=>{if(event.key==='Escape'){setPinned(false);event.currentTarget.querySelector('.acid-drawer-handle')?.focus();}}},
-            h('button',{type:'button',className:'acid-drawer-handle','aria-label':`MORE — ${t('canvas')} / ${t('palette')}`,'aria-expanded':pinned,'aria-controls':bodyId,onClick:()=>setPinned(value=>!value)},
+          h('div',{ref:drawer,className:'acid-drawer',onKeyDown:event=>{if(event.key==='Escape'){changeDrawer(false);event.currentTarget.querySelector('.acid-drawer-handle')?.focus();}}},
+            h('button',{type:'button',className:'acid-drawer-handle','aria-label':`MORE — ${t('canvas')} / ${t('palette')}`,'aria-expanded':pinned,'aria-controls':bodyId,onClick:()=>changeDrawer(!!drawer.current?.closest('.wtg9ga_footArea')?.dataset.acidClosing||!pinned)},
               h('span',{className:'acid-drawer-label'},'MORE',h('span',{className:'acid-drawer-chevron','aria-hidden':true},'⌃'))),
             h('div',{id:bodyId,className:'acid-drawer-body'},h(DrawerTools),modes,palette)),dialog);
       }
@@ -177,6 +193,7 @@ window.__ModuleLoader__.load({
             h('div', null, h('label', { htmlFor: `${prefix}-canvas` }, t('canvas')), h('p', null, t('canvas.description'))),
             h('select', { id: `${prefix}-canvas`, value: state.canvas, onChange: event => updateAppearance({ canvas: event.target.value }) }, ...['paper', 'night', 'adaptive'].map(value => h('option', { key: value, value }, t(value))))),
           h('div', { className: 'acid-setting-row' },h('label',{htmlFor:`${prefix}-motion`},t('motion')),h('select',{id:`${prefix}-motion`,value:state.motion,onChange:event=>updateAppearance({motion:event.target.value})},...['full','quiet','off'].map(value=>h('option',{key:value,value},t(value))))),
+          h('div', { className: 'acid-setting-row' },h('div',null,h('label',{htmlFor:`${prefix}-sidebar-style`},t('sidebarStyle')),h('p',null,t('sidebarStyle.description'))),h('select',{id:`${prefix}-sidebar-style`,value:state.sidebarStyle,onChange:event=>updateAppearance({sidebarStyle:event.target.value})},...['next','classic'].map(value=>h('option',{key:value,value},t(`sidebarStyle.${value}`))))),
           h('div', { className: 'acid-palette-head' }, h('div', null, h('strong', null, `${t(state.mode === 'day' ? 'paper' : 'night')} / ${t('palette')}`), h('p', null, t('palette.description'))), h('button', { type: 'button', 'data-palette-reset': true, onClick: () => setPalette(DEFAULT_PALETTES[state.mode]) }, t('reset'))),
           h('div', { className: 'acid-palette-presets', role: 'group', 'aria-label': t('palette') }, ...Object.entries(PALETTE_PRESETS).map(([key, colors]) => h('button', { key, type: 'button', 'data-palette-preset': key, 'aria-pressed': JSON.stringify(palette) === JSON.stringify(colors[state.mode]), onClick: () => setPalette(colors[state.mode]) }, h('span', { className: 'acid-preset-dot', style: { background: colors[state.mode].accent }, 'aria-hidden': true }), t(key)))),
           h('div', { className: 'acid-palette-fields' }, ...['accent', 'signal', 'surface', 'text'].map(field => h(ColorField, { key: field, field, prefix, value: palette[field], t, onColor: color => setPalette({ ...palette, [field]: color }) }))),

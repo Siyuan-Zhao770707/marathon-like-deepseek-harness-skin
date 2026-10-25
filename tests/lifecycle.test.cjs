@@ -12,6 +12,7 @@ function harness(options = {}) {
   const windowEvents = new Map([['storage', storageEvents]]);
   const storage = new Map(Object.entries(options.storage || {}));
   let nativeScheme = options.nativeScheme || 'light';
+  let nativeGrouping = options.nativeGrouping || 'workspace';
   let exports;
   const html = {
     getAttribute: key => attributes.get(key) ?? null,
@@ -29,6 +30,7 @@ function harness(options = {}) {
   });
   vm.runInContext(fs.readFileSync(path.join(root, 'lib/client.js'), 'utf8'), context);
   const ctx = {
+    uiWorkspace: { view: { setGroupBy: mode => { nativeGrouping = mode; } } },
     inject: (_names, fn) => ctx.effect(() => fn(ctx)),
     effect: fn => { const dispose = fn(); if (typeof dispose === 'function') disposers.push(dispose); return dispose; },
     locale: { register: () => () => {} },
@@ -36,7 +38,7 @@ function harness(options = {}) {
     slots: { inject: (_name, fn) => ctx.effect(fn), register: (options, Component) => { slots.set(options.id, { options, Component }); return () => slots.delete(options.id); } },
     theme: { getTheme: () => ({ active: { colorScheme: nativeScheme } }), overrideTokens: (source, tokens) => { const layer = { tokens }; layers.set(source, layer); events.get('theme/change')?.({ active: { colorScheme: nativeScheme } }); return () => { if (layers.get(source) === layer) layers.delete(source); }; } }
   };
-  return { exports, ctx, html, styles, attributes, properties, slots, layers, storage, events, storageEvents, windowEvents, changeTheme: value => { nativeScheme = value; events.get('theme/change')?.({ active: { colorScheme: value } }); }, notifyStorage: key => { for (const fn of storageEvents) fn({ key }); }, dispose: () => disposers.reverse().forEach(fn => fn()) };
+  return { exports, ctx, html, styles, attributes, properties, slots, layers, storage, events, storageEvents, windowEvents, getGrouping: () => nativeGrouping, changeTheme: value => { nativeScheme = value; events.get('theme/change')?.({ active: { colorScheme: value } }); }, notifyStorage: key => { for (const fn of storageEvents) fn({ key }); }, dispose: () => disposers.reverse().forEach(fn => fn()) };
 }
 
 test('mount and withdraw only owned visuals, preserving another plugin and prior root state', () => {
@@ -232,6 +234,7 @@ test('default, preset and midtone custom palettes keep text, metadata, links and
 
 test('NEXT footer keeps day/night and palette inside a collapsed bottom drawer', () => {
   const runtime = harness(); runtime.exports.apply(runtime.ctx, {});
+  runtime.html.setAttribute('data-acid-sidebar', 'next');
   const tree = runtime.slots.get('industrial.signature').Component({ wide: true, t: value => value });
   const find = (node, predicate) => { if (!Array.isArray(node)) return; if (predicate(node)) return node; for (const child of node.slice(2)) { const found = find(child, predicate); if (found) return found; } };
   const drawer = find(tree, n => n[1]?.className === 'acid-drawer');
@@ -242,4 +245,62 @@ test('NEXT footer keeps day/night and palette inside a collapsed bottom drawer',
   assert.ok(find(body, n => n[1]?.['data-appearance-option'] === 'night'));
   assert.ok(find(body, n => n[1]?.className === 'acid-palette-shortcut'));
   runtime.dispose();
+});
+
+test('workspace style switches immediately, survives remounts and synchronizes without changing palettes or workspace identity', () => {
+  const key = 'dsh-industrial-acid-skin:sidebar-style';
+  const preserved = { 'dsh-industrial-acid-skin:workspace-order': '["a","b"]', 'dsh-industrial-acid-skin:workspace-identity': '{"v":3,"map":{"a":0,"b":1}}' };
+  const runtime = harness({ storage: preserved }); runtime.exports.apply(runtime.ctx, {});
+  const find = (tree, predicate) => {
+    if (!Array.isArray(tree)) return;
+    if (predicate(tree)) return tree;
+    for (const child of tree.slice(2)) { const found = find(child, predicate); if (found) return found; }
+  };
+  const render = (owner, id) => { if (owner.storage.get(key) !== 'classic') owner.html.setAttribute('data-acid-sidebar', 'next'); else owner.html.removeAttribute('data-acid-sidebar'); return owner.slots.get(id).Component({ wide: true, t: value => value }); };
+  const selector = () => find(render(runtime, 'industrial.canvas'), node => node[1]?.id === 'acid-sidebar-style');
+  const drawer = owner => find(render(owner, 'industrial.signature'), node => node[1]?.className === 'acid-drawer');
+  const tokens = JSON.stringify([...runtime.layers.values()][0].tokens);
+  assert.equal(selector()[1].value, 'next'); assert.ok(drawer(runtime));
+  selector()[1].onChange({ target: { value: 'classic' } });
+  assert.equal(runtime.storage.get(key), 'classic'); assert.equal(drawer(runtime), undefined);
+  const classic = render(runtime, 'industrial.signature');
+  assert.ok(find(classic, node => node[1]?.['data-appearance-option'] === 'night'));
+  assert.ok(find(classic, node => node[1]?.className === 'acid-palette-shortcut'));
+  assert.equal(JSON.stringify([...runtime.layers.values()][0].tokens), tokens);
+  for (const [pref, value] of Object.entries(preserved)) assert.equal(runtime.storage.get(pref), value);
+  const remounted = harness({ storage: Object.fromEntries(runtime.storage) }); remounted.exports.apply(remounted.ctx, {});
+  assert.equal(drawer(remounted), undefined);
+  runtime.storage.set(key, 'next'); runtime.notifyStorage(key); assert.ok(drawer(runtime));
+  runtime.storage.set(key, 'invalid'); runtime.notifyStorage(key); assert.equal(selector()[1].value, 'next');
+  runtime.storage.delete(key); runtime.notifyStorage(null); assert.ok(drawer(runtime));
+  runtime.dispose(); remounted.dispose();
+});
+
+test('a flat or not-yet-loaded workspace list uses the normal footer without an unanchored MORE bar', () => {
+  const runtime = harness(); runtime.exports.apply(runtime.ctx, {});
+  const tree = runtime.slots.get('industrial.signature').Component({ wide: true, t: value => value });
+  const classes = [];
+  const visit = node => { if (!Array.isArray(node)) return; if (node[1]?.className) classes.push(node[1].className); node.slice(2).forEach(visit); };
+  visit(tree);
+  assert.ok(classes.includes('acid-mode-switch'));
+  assert.ok(classes.includes('acid-palette-shortcut'));
+  assert.ok(!classes.includes('acid-drawer-handle'));
+  assert.ok(!classes.includes('acid-drawer-tools'));
+  runtime.dispose();
+});
+
+test('returning from classic flat lists restores native workspace grouping for every next-style activation', () => {
+  const key='dsh-industrial-acid-skin:sidebar-style';
+  const runtime=harness({storage:{[key]:'classic'},nativeGrouping:'flat'});runtime.exports.apply(runtime.ctx,{});
+  const find=node=>{if(!Array.isArray(node))return;if(node[1]?.id==='acid-sidebar-style')return node;for(const child of node.slice(2)){const found=find(child);if(found)return found;}};
+  const change=value=>find(runtime.slots.get('industrial.canvas').Component({t:value=>value}))[1].onChange({target:{value}});
+  assert.equal(runtime.getGrouping(),'flat');
+  for(let cycle=0;cycle<3;cycle++){
+    change('next');assert.equal(runtime.getGrouping(),'workspace');assert.equal(runtime.storage.get(key),'next');
+    change('classic');runtime.ctx.uiWorkspace.view.setGroupBy('flat');
+  }
+  runtime.storage.set(key,'next');runtime.notifyStorage(key);assert.equal(runtime.getGrouping(),'workspace');
+  runtime.dispose();
+  const restored=harness({storage:{[key]:'next'},nativeGrouping:'flat'});restored.exports.apply(restored.ctx,{});
+  assert.equal(restored.getGrouping(),'workspace');restored.dispose();
 });

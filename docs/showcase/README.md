@@ -6,9 +6,11 @@ node tools/serve-showcase.cjs
 
 打开 `http://127.0.0.1:19411/?controls=1`。上方工具条可以切换 token 活动、按钮、输入框、状态和三种 Max 场景，也能播放开屏和蓄力。活动场景的“增加用量”按四个展示数值切换今日档位；齿轮可修改展示界限。
 
+2.4.6 工作区展示在 `http://127.0.0.1:19411/docs/showcase/next.html`：悬停色条查看会话，点击顶部调色盘切换布局和配色，底部 MORE 展开抽屉。窗口按钮仅展示位置。工作区排布、识别色、样式、数字扫描和遮罩直接读取正式插件，原生页面外壳由虚构 DOM 模拟；此页不验证 Harness 的持久化或原生分组接口。
+
 展示页从 `lib/client.js` 读取正式版 CSS、字体、配色计算、遮罩控制器、数字扫描、工作区窄栏组件和 Max Canvas 渲染器。token 日期、四档划分与界限校验也复用正式版函数；活动图展示外壳由本地 DOM 适配器渲染。预览服务只为展示页额外导出这些函数；不会改写客户端文件。
 
-页面外壳、工作区、模型目录、状态文字与 token 计数是本地展示数据，未连接 Harness 的 profile、会话或认证服务。Max 单项场景固定一种形式便于比较，插件默认随机。统一使用正常 1× 和 1.4 幅度。2.4.0 重新录制涉及侧栏的 01–11，保留 12–17 的既有动效细部，新增 18 的四色每日活动和 19 的界限设置。
+页面外壳、工作区、模型目录、状态文字与 token 计数是本地展示数据，未连接 Harness 的 profile、会话或认证服务。Max 单项场景固定一种形式便于比较，插件默认随机。统一使用正常 1× 和 1.4 幅度。2.4.0 重新录制涉及侧栏的 01–11，保留 12–17 的既有动效细部，新增 18 的四色每日活动和 19 的界限设置。2.4.6 新增 20 的色条与黑白悬停卡片、21 的经典与新版切换、22 的 MORE 遮罩与配色联动，以及新版全貌与输入框截图。
 
 自述中的 GIF 由浏览器实际渲染截图组成，逐帧延迟来自捕获时间，未作慢放。原始截图保存在被 Git 忽略的 `.recordings/`。安装 Pillow 后可重新编码已有帧：
 
@@ -29,3 +31,14 @@ python tools/encode-showcase.py 01-opening 02-left-sidebar 03-right-sidebar 04-w
 ```
 
 录制器会先检查四个档位、界限校验与窄窗口，记录实际捕获时间，并确认没有请求 Harness 的 `/api/`。运行包与源码构建不需要这些录制依赖。
+
+只重录本次工作区展示：
+
+```sh
+node tools/record-workspaces.cjs
+python tools/encode-showcase.py 20-next-sidebar 21-classic-switch 22-more-palette
+```
+
+此录制器先核对 113px 色条、经典 2×2 按钮、输入框聚焦、黑白悬停卡片，以及 800×600 和 520×600 的抽屉边界；捕获脚本错误并确认所有请求留在本地展示服务。原始帧和检查报告只写入 `.recordings/`。
+
+全貌截图：[`next-overview.png`](../media/next-overview.png)、[`classic-overview.png`](../media/classic-overview.png)。浅色产出卡片示例为 [`deliverables-day.png`](../media/deliverables-day.png)，可在 URL 后添加 `?scene=deliverables` 查看；示例文件与说明均为虚构内容。
