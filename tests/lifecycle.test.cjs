@@ -47,7 +47,8 @@ test('mount and withdraw only owned visuals, preserving another plugin and prior
   runtime.styles.add(unrelated);
   runtime.exports.apply(runtime.ctx, {});
   assert.equal(runtime.styles.size, 2);
-  assert.equal(runtime.slots.size, 6);
+  assert.equal(runtime.slots.size, 7);
+  assert.ok(runtime.slots.has('industrial.marathon'));
   assert.equal(runtime.attributes.get('data-industrial-canvas'), 'paper');
   assert.equal(runtime.layers.size, 1);
   runtime.dispose();

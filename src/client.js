@@ -21,6 +21,7 @@ window.__ModuleLoader__.load({
     const NS = 'industrial.acid';
     /*__PALETTE_CORE__*/
     /*__TOKEN_ACTIVITY_CORE__*/
+    /*__MARATHON_CORE__*/
     const dictionaries = {
       zh: { 'workspace': '工作区', 'none': '未选择工作区', 'plugins': '插件', 'settings': '设置', 'canvas': '皮肤外观', 'canvas.description': '白天与黑天切换整套皮肤；跟随应用使用原有外观设置。', 'paper': '白天', 'night': '黑天', 'adaptive': '跟随应用', 'local': '本地工作区', 'palette': '调色盘', 'palette.description': '调整即生效，白天与黑天分别保存。', 'accent': '酸性色', 'signal': '交互色', 'surface': '阅读背景', 'text': '正文色', 'acid': '经典酸性', 'orange': '工业橙', 'polar': '极地信号', 'reset': '恢复默认', 'contrast': '正文对比度', 'adjusted': '已增强正文对比度，实际颜色', 'hex': 'HEX 色值', 'motion': '动效', 'full': '完整', 'quiet': '克制', 'off': '停止' },
       en: { 'workspace': 'WORKSPACE', 'none': 'No workspace selected', 'plugins': 'Plugins', 'settings': 'Settings', 'canvas': 'Skin appearance', 'canvas.description': 'Day and night switch the entire skin. Follow app uses the existing appearance setting.', 'paper': 'Day', 'night': 'Night', 'adaptive': 'Follow app', 'local': 'LOCAL WORKSPACE', 'palette': 'Palette', 'palette.description': 'Updates immediately. Day and night palettes are saved separately.', 'accent': 'Acid accent', 'signal': 'Interaction', 'surface': 'Reading canvas', 'text': 'Text', 'acid': 'Classic acid', 'orange': 'Industrial orange', 'polar': 'Polar signal', 'reset': 'Reset palette', 'contrast': 'Text contrast', 'adjusted': 'Text contrast enhanced; effective color', 'hex': 'HEX color', 'motion': 'Motion', 'full': 'Full', 'quiet': 'Quiet', 'off': 'Off' }
@@ -102,7 +103,12 @@ window.__ModuleLoader__.load({
       }
 
       const activityStore = createTokenActivityStore(ctx);
-      ctx.effect(() => ctx.locale.register(NS, { zh:{...dictionaries.zh,...MODEL_DICTIONARIES.zh,...ACTIVITY_DICTIONARIES.zh}, en:{...dictionaries.en,...MODEL_DICTIONARIES.en,...ACTIVITY_DICTIONARIES.en} }), `${ID}: locale`);
+      // Secret terminal progress holds egg IDs and timestamps only; composer text never reaches it.
+      const marathonStore = createMarathonStore();
+      const useMarathon = () => React.useSyncExternalStore(marathonStore.subscribe, marathonStore.get, marathonStore.get);
+      let marathonDirector;
+      const playMarathon = (id, info) => marathonDirector?.play(id, info);
+      ctx.effect(() => ctx.locale.register(NS, { zh:{...dictionaries.zh,...MODEL_DICTIONARIES.zh,...ACTIVITY_DICTIONARIES.zh,...MARATHON_DICTIONARIES.zh}, en:{...dictionaries.en,...MODEL_DICTIONARIES.en,...ACTIVITY_DICTIONARIES.en,...MARATHON_DICTIONARIES.en} }), `${ID}: locale`);
       ctx.effect(() => {
         const root = document.documentElement;
         const previous = { enabled: root.getAttribute('data-industrial-acid'), canvas: root.getAttribute('data-industrial-canvas'), mode: root.getAttribute('data-industrial-mode'), shell: root.getAttribute('data-industrial-shell'), motion: root.getAttribute('data-industrial-motion'), motionSet: root.getAttribute('data-industrial-motion-set'), height: root.style.getPropertyValue('--acid-header-max'), priority: root.style.getPropertyPriority('--acid-header-max') };
@@ -187,6 +193,7 @@ window.__ModuleLoader__.load({
       }
       function CanvasRow({ t, prefix='acid' }) {
         const state = useAppearance(), palette = state.palettes[state.mode], scheme = makeScheme(state.mode, palette);
+        const presets = useMarathon().unlocked ? { ...PALETTE_PRESETS, rampancy: MARATHON_THEME } : PALETTE_PRESETS;
         const setPalette = colors => updateAppearance({ palettes: { ...state.palettes, [state.mode]: colors } });
         return h('section', { className: 'acid-appearance-settings', 'aria-label': t('palette') },
           h('div', { className: 'acid-setting-row' },
@@ -195,7 +202,7 @@ window.__ModuleLoader__.load({
           h('div', { className: 'acid-setting-row' },h('label',{htmlFor:`${prefix}-motion`},t('motion')),h('select',{id:`${prefix}-motion`,value:state.motion,onChange:event=>updateAppearance({motion:event.target.value})},...['full','quiet','off'].map(value=>h('option',{key:value,value},t(value))))),
           h('div', { className: 'acid-setting-row' },h('div',null,h('label',{htmlFor:`${prefix}-sidebar-style`},t('sidebarStyle')),h('p',null,t('sidebarStyle.description'))),h('select',{id:`${prefix}-sidebar-style`,value:state.sidebarStyle,onChange:event=>updateAppearance({sidebarStyle:event.target.value})},...['next','classic'].map(value=>h('option',{key:value,value},t(`sidebarStyle.${value}`))))),
           h('div', { className: 'acid-palette-head' }, h('div', null, h('strong', null, `${t(state.mode === 'day' ? 'paper' : 'night')} / ${t('palette')}`), h('p', null, t('palette.description'))), h('button', { type: 'button', 'data-palette-reset': true, onClick: () => setPalette(DEFAULT_PALETTES[state.mode]) }, t('reset'))),
-          h('div', { className: 'acid-palette-presets', role: 'group', 'aria-label': t('palette') }, ...Object.entries(PALETTE_PRESETS).map(([key, colors]) => h('button', { key, type: 'button', 'data-palette-preset': key, 'aria-pressed': JSON.stringify(palette) === JSON.stringify(colors[state.mode]), onClick: () => setPalette(colors[state.mode]) }, h('span', { className: 'acid-preset-dot', style: { background: colors[state.mode].accent }, 'aria-hidden': true }), t(key)))),
+          h('div', { className: 'acid-palette-presets', role: 'group', 'aria-label': t('palette') }, ...Object.entries(presets).map(([key, colors]) => h('button', { key, type: 'button', 'data-palette-preset': key, 'aria-pressed': JSON.stringify(palette) === JSON.stringify(colors[state.mode]), onClick: () => setPalette(colors[state.mode]) }, h('span', { className: 'acid-preset-dot', style: { background: colors[state.mode].accent }, 'aria-hidden': true }), t(key)))),
           h('div', { className: 'acid-palette-fields' }, ...['accent', 'signal', 'surface', 'text'].map(field => h(ColorField, { key: field, field, prefix, value: palette[field], t, onColor: color => setPalette({ ...palette, [field]: color }) }))),
           h('div', { className: 'acid-palette-preview', style: { background: palette.surface, color: scheme.text }, 'aria-hidden': true }, h('strong', null, 'Aa / 0123'), h('span', { style: { background: palette.accent, color: scheme.variables['--acid-accent-fore'] } }, 'DS'), h('span', { style: { background: palette.signal, color: scheme.variables['--acid-blue-fore'] } }, '01')),
           h('p', { className: 'acid-contrast-note', role: 'status', 'aria-live': 'polite' }, `${t('contrast')} ${scheme.contrast.toFixed(1)}:1`, scheme.adjusted ? ` · ${t('adjusted')} ${scheme.text}` : ''),
@@ -204,6 +211,7 @@ window.__ModuleLoader__.load({
 
       ctx.effect(installComposerMenuClearance,`${ID}: native composer menu clearance`);
       ctx.effect(()=>{motionController=installSkinMotion(getMotion);const onReduce=()=>syncAppearance();reduce?.addEventListener('change',onReduce);return()=>{reduce?.removeEventListener('change',onReduce);motionController.dispose();motionController=undefined;for(const row of document.querySelectorAll('[data-acid-ordinal]'))row.removeAttribute('data-acid-ordinal');};},`${ID}: retractable motion`);
+      ctx.effect(()=>{marathonDirector=createMarathonDirector({getMotion});const dispose=installMarathonProtocol({store:marathonStore,director:marathonDirector});return()=>{dispose();marathonDirector=undefined;};},`${ID}: secret terminal protocol`);
       ctx.effect(()=>{if(getMotion()==='off')return;const intro=document.createElement('div');intro.className='acid-intro';intro.setAttribute('aria-hidden','true');intro.innerHTML='<div class=acid-intro-name>DEEPSEEK<span>HARNESS</span></div><div class=acid-intro-bar></div>';document.body.append(intro);const timer=setTimeout(()=>intro.remove(),1250);return()=>{clearTimeout(timer);intro.remove();};},`${ID}: opening sequence`);
       const register = (name, id, Component, extra = {}) => ctx.slots.inject(name, () => ctx.slots.register({ name, id, locale: NS, ...extra }, Component));
       register('shell.overlay', 'industrial.masthead', props=>h(Masthead,{...props,useAppearance,getMotion,motion:()=>motionController,toggleSidebar:()=>ctx.layout.toggleSidebar(),goHome:()=>ctx.layout.selectPanel(null),pickWorkspace:id=>ctx.uiWorkspace.openWorkspace(id).catch(()=>{})}), { order: -1000 });
@@ -211,9 +219,10 @@ window.__ModuleLoader__.load({
       register('sidebar.footer.action', 'industrial.signature', AppearanceFooter, { order: 1000 });
       register('settings.header', 'industrial.settings-header', SettingsHeader, { priority: -50 });
       register('settings.general.item', 'industrial.canvas', CanvasRow, { order: 12 });
+      register('settings.general.item', 'industrial.marathon', props=>h(MarathonSettings,{...props,useMarathon,store:marathonStore,play:playMarathon,applyTheme:()=>updateAppearance({palettes:MARATHON_THEME})}), { order: 13 });
       installModelControls(ctx, useAppearance);
     }
 
-    return { inject: ['slots', 'locale', 'theme', 'layout', 'uiWorkspace', 'connection'], apply, tokenOverrides, workspaceContext, formatWorkspaceIndex, normalizePalettes, normalizeCanvas, resolveMode, makeScheme, contrast, DEFAULT_PALETTES, PALETTE_PRESETS, modelControlSnapshot, effortSelection, modelPopoverPlacement, effortVisual, selectionIdentity, createMaxEpisode, acceptedDuration, ACCEPTED_MOTION, rankWorkspaces, moveInOrder, workspaceNumbers, markWorkspaceReorder, migrateIdentity };
+    return { inject: ['slots', 'locale', 'theme', 'layout', 'uiWorkspace', 'connection'], apply, tokenOverrides, workspaceContext, formatWorkspaceIndex, normalizePalettes, normalizeCanvas, resolveMode, makeScheme, contrast, DEFAULT_PALETTES, PALETTE_PRESETS, modelControlSnapshot, effortSelection, modelPopoverPlacement, effortVisual, selectionIdentity, createMaxEpisode, acceptedDuration, ACCEPTED_MOTION, rankWorkspaces, moveInOrder, workspaceNumbers, markWorkspaceReorder, migrateIdentity, MARATHON_EGGS, MARATHON_FINALE, MARATHON_SEQUENCE, MARATHON_SEQUENCE_WINDOW, MARATHON_THEME, MARATHON_PREF, MARATHON_SCENES, normalizeMarathonText, matchMarathonKeyword, normalizeMarathonState, advanceMarathonSequence, createMarathonGate, createMarathonStore, recordMarathonTrigger, installMarathonProtocol };
   }
 });

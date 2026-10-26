@@ -249,7 +249,11 @@
       }
     });
   }
-  window.showcase={setPalette,setWorkspace,setEffort,setView,setRoute,toggleLeft,toggleRight,openPalette,openMenu,closeDialog,closeMenu,switchPreview,intro,setActivityUsage,setActivityThresholds,openTokenSettings,
+  // Secret terminal: production director and composer listener, driven by the sample textarea.
+  const marathonStore=core.createMarathonStore(),marathon=core.createMarathonDirector({getMotion:()=>matchMedia('(prefers-reduced-motion:reduce)').matches?'off':motion});
+  const disposeMarathon=core.installMarathonProtocol({store:marathonStore,director:marathon});
+  window.addEventListener('pagehide',disposeMarathon,{once:true});
+  window.showcase={setPalette,marathon,marathonStore,playEgg(id,info={}){return marathon.play(id,info);},setWorkspace,setEffort,setView,setRoute,toggleLeft,toggleRight,openPalette,openMenu,closeDialog,closeMenu,switchPreview,intro,setActivityUsage,setActivityThresholds,openTokenSettings,
     charge(){(detailEnergy||menuEnergy)?.sweep();},
     setMotion(value){motion=['full','quiet','off'].includes(value)?value:'full';html.dataset.industrialMotion=motion;controller.cancel();menuEnergy?.configure({motion});detailEnergy?.configure({motion});},
     inspect(){return {mode,palette,workspaceId,motion,overflow:html.scrollWidth>innerWidth,fonts:document.fonts.check('20px "Industrial GRID"')&&document.fonts.check('12px "Industrial SIGNAL"'),temporaryLayers:document.querySelectorAll('.acid-approved-mask,.acid-transition-proxy').length};}

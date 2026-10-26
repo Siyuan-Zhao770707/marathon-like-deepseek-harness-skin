@@ -154,6 +154,17 @@
 
 动效有「完整 / 克制 / 停止」三档，也跟随系统的“减少动态效果”。停止时仍保留静态 Max 标识。
 
+## MARATHON // SECRET TERMINAL PROTOCOL
+
+输入框里藏着 16 个信号。打出某些《Marathon》里的名字，比如 `durandal`，输入框先受到干扰，屏幕边缘亮起扫描线，再展开一段只属于它的短演出。每个信号有自己的颜色、构图和时间线；还有一段需要按顺序唤醒的隐藏协议，完成后解锁一套新的调色盘。
+
+- 只在输入框整段等于关键词，或刚打完一个独立的关键词时触发；单词内部不会误触发，中文输入法组合期间不判断。
+- 不改动、不拦截输入，不读聊天记录，不联网。本地只记录已发现的信号编号和解锁时间，不保存输入内容。
+- 演出不挡输入框，可随时按 Esc 跳过，同一信号有可调的冷却时间。动效设为「停止」或系统减少动态效果时，改为一张静态卡片。
+- 设置 → 通用里的「隐藏终端协议」可以关闭、调冷却、重播已发现的信号。
+
+所有图形、字形和文案均为原创，未使用游戏的原始界面、标志或音频。
+
 ## 安装
 
 1. 下载 [v2.4.6 发布包](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.6) 中的 `dsh-industrial-acid-skin-2.4.6.tgz`，或按[构建步骤](docs/INSTALL.md#构建与测试)从源码生成。历史版本见 [Releases](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases)。
