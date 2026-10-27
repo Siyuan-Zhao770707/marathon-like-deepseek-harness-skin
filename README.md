@@ -4,9 +4,9 @@
 
 从 Marathon 的大色块、硬边界和工业排版开始：字标切开，按钮收方，工作区放上三位数字。正文留出空间，切换时让颜色沿着界面的方向走。
 
-`v2.4.6` · `Windows` · `Harness 0.2.0-rc.2 / 0.2.1（含 RC）`
+`v2.4.7` · `Windows` · `Harness 0.2.0-rc.2 / 0.2.1（含 RC）`
 
-[下载 2.4.6](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.6) · [安装与回退](docs/INSTALL.md) · [本次更新](docs/RELEASE-v2.4.6.md)
+[下载 2.4.7](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.7) · [安装与回退](docs/INSTALL.md) · [本次更新](docs/RELEASE-v2.4.7.md)
 
 ![2.4.6 新版色条工作区与竖排窗口按钮，独立展示页](docs/media/next-overview.png)
 
@@ -18,7 +18,7 @@
 
 皮肤里新增了许多围绕 **Marathon IP memes** 的彩蛋，留给熟悉这个系列的你慢慢发现。彩蛋中的图形、字形和文案均为原创，未使用游戏的原始界面、标志或音频。
 
-本次彩蛋与工作区色条状态动画为源码更新，尚未包含在下方的 v2.4.6 发布包中；可按[源码构建步骤](docs/INSTALL.md#构建与测试)体验。
+本次彩蛋与工作区色条状态动画已包含在 **v2.4.7 安装包**中，下载后即可在 Harness 中安装，无需构建源码。
 
 ## 2.4.6：工作区收进色条
 
@@ -170,14 +170,14 @@
 
 ## 安装
 
-1. 下载 [v2.4.6 发布包](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.6) 中的 `dsh-industrial-acid-skin-2.4.6.tgz`，或按[构建步骤](docs/INSTALL.md#构建与测试)从源码生成。历史版本见 [Releases](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases)。
-2. 打开 Harness「插件 → 添加插件」，在**包名或地址**输入框粘贴下方完整下载地址（也可先下载，再输入本机的**绝对路径**，例如 `C:\Users\你的用户名\Downloads\dsh-industrial-acid-skin-2.4.6.tgz`）：
+1. 下载 [v2.4.7 发布包](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.7) 中的 `dsh-industrial-acid-skin-2.4.7.tgz`。日常安装无需 Node.js 或源码构建；历史版本见 [Releases](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases)。
+2. 打开 Harness「插件 → 添加插件」，在**包名或地址**输入框粘贴下方完整下载地址（也可先下载，再输入本机的**绝对路径**，例如 `C:\Users\你的用户名\Downloads\dsh-industrial-acid-skin-2.4.7.tgz`）：
 
    ```text
-   https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/download/v2.4.6/dsh-industrial-acid-skin-2.4.6.tgz
+   https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/download/v2.4.7/dsh-industrial-acid-skin-2.4.7.tgz
    ```
 
-   输入框不会按文件名搜索 GitHub Release；只输入 `dsh-industrial-acid-skin-2.4.6` 会触发 npm 查询并提示「未找到相关插件」。请使用完整 URL 或本机绝对路径。
+   输入框不会按文件名搜索 GitHub Release；只输入 `dsh-industrial-acid-skin-2.4.7` 会触发 npm 查询并提示「未找到相关插件」。请使用完整 URL 或本机绝对路径。
 3. 安装完成后点「立即启用」；如 Harness 提示需要重启，则重启客户端。
 4. 在侧栏调色盘，或「设置 → 通用设置 → 皮肤外观」里调整颜色、动效和工作区样式。
 
