@@ -4,7 +4,8 @@ const MARATHON_CARD = '[data-composer-card=true],.RlGAzG_card';
 // CSS-module hashes change between DSH builds; match the stable local class name instead.
 const MARATHON_FRAME = '[class*="_centerCol"]';
 const MX_EASE = 'cubic-bezier(.2,.8,.2,1)', MX_SNAP = 'cubic-bezier(.7,0,.2,1)', MX_IN = 'cubic-bezier(.5,0,.75,0)';
-const MX_FLASH_GAP = 340, MX_FLASH_PEAK = .35, MX_STILL_HOLD = 3400;
+const MX_FLASH_GAP = 340, MX_FLASH_PEAK = .35, MX_STILL_HOLD = 3400, MX_BURST_MAX = 6, MX_BURST_TIME = 240;
+let mxFilterId = 0;
 
 function mxRandom(seed) {
   let a = seed >>> 0;
@@ -16,21 +17,29 @@ const mxEscape = value => String(value).replace(/[&<>"]/g, c => ({ '&': '&amp;',
 
 /** One cancellable timeline per show. Every animation, timer and flash is tracked for skip and QA. */
 function marathonTimeline(stage, motion) {
-  const animations = [], timers = [], flashes = [];
+  const animations = [], timers = [], flashes = [], bursts = [];
+  // Flashes and glitch bursts share one budget so their combined rate stays under 3 pulses per second.
+  const crowded = at => [...flashes, ...bursts].some(time => Math.abs(time - at) < MX_FLASH_GAP);
   const tl = {
-    motion, full: motion === 'full', ended: false, flashes,
+    motion, full: motion === 'full', ended: false, flashes, bursts,
     play(node, frames, duration, at = 0, options = {}) {
       if (!node?.animate || tl.ended) return null;
       // endDelay: Chromium can report "finished" at end − ε, inside the active phase, which leaves
       // steps(…, end) one step short; 1ms keeps the settled state in the after-phase fill.
-      const animation = node.animate(frames, { duration: Math.max(1, duration), delay: Math.max(0, at), endDelay: 1, easing: options.ease || MX_EASE, fill: options.fill || 'both', iterations: options.iterations ?? 1, direction: options.direction || 'normal' });
+      const animation = node.animate(frames, { duration: Math.max(1, duration), delay: Math.max(0, at), endDelay: 1, easing: options.ease || MX_EASE, fill: options.fill || 'both', iterations: options.iterations ?? 1, direction: options.direction || 'normal', ...(options.pseudo ? { pseudoElement: options.pseudo } : {}) });
       animation.finished.catch(() => {}); animations.push(animation); return animation;
     },
     at(ms, callback) { timers.push(setTimeout(() => { if (!tl.ended) callback(); }, Math.max(0, ms))); },
     type(node, text, at, step = 18) {
+      // Progress comes from elapsed time, so throttled timers (a backgrounded window) catch up instead of lagging the animations.
       tl.at(at, () => {
-        let index = 0; node.classList.add('mx-caret');
-        const tick = () => { if (tl.ended) return; node.textContent = text.slice(0, ++index); if (index < text.length) timers.push(setTimeout(tick, step)); else node.classList.remove('mx-caret'); };
+        const start = performance.now(); node.classList.add('mx-caret');
+        const tick = () => {
+          if (tl.ended) return;
+          const index = Math.min(text.length, Math.floor((performance.now() - start) / step) + 1);
+          node.textContent = text.slice(0, index);
+          if (index < text.length) timers.push(setTimeout(tick, step)); else node.classList.remove('mx-caret');
+        };
         tick();
       });
       return at + text.length * step;
@@ -59,9 +68,27 @@ function marathonTimeline(stage, motion) {
     },
     // Photosensitivity guard: at most one pulse per 340ms (< 3/s) and a capped peak opacity.
     flash(node, at, duration = 160, peak = .3) {
-      if (!tl.full || flashes.some(time => Math.abs(time - at) < MX_FLASH_GAP)) return null;
+      if (!tl.full || crowded(at)) return null;
       flashes.push(at);
       return tl.play(node, [{ opacity: 0 }, { opacity: Math.min(MX_FLASH_PEAK, peak) }, { opacity: 0 }], duration, at, { ease: 'linear', fill: 'none' });
+    },
+    allowBurst(at) {
+      if (motion === 'off' || bursts.length >= MX_BURST_MAX || crowded(at)) return false;
+      bursts.push(at); return true;
+    },
+    // A few characters drop to block glyphs for a couple of ticks, then the original text returns.
+    corrupt(node, at, ticks = 3, step = 55) {
+      tl.at(at, () => {
+        const original = node.textContent, random = mxRandom(original.length * 13 + Math.round(at)), set = '▚▞▙▟█░▒▓#%&@/\\<>';
+        let k = 0;
+        const tick = () => {
+          if (tl.ended) return;
+          if (k++ >= ticks) { node.textContent = original; return; }
+          node.textContent = [...original].map(c => c !== ' ' && random() < .24 ? set[Math.floor(random() * set.length)] : c).join('');
+          timers.push(setTimeout(tick, step));
+        };
+        tick();
+      });
     },
     cancel() { tl.ended = true; for (const id of timers) clearTimeout(id); for (const animation of animations) animation.cancel(); timers.length = 0; animations.length = 0; }
   };
@@ -91,10 +118,71 @@ function marathonIntro(s, tl, { veil = .8, label = s.egg.name, glitch = true, sw
       tl.play(slice, [{ transform: `translateX(${shift}px) scaleX(.2)`, opacity: 0 }, { transform: `translateX(${-shift / 2}px) scaleX(1)`, opacity: .9 }, { transform: `translateX(${shift / 3}px)`, opacity: .5 }, { transform: 'none', opacity: 0 }], 520, 40 + i * 40, { ease: 'steps(4,end)' });
     });
   }
-  if (glitch && tl.full && s.frame) {
-    tl.play(s.frame, [{ transform: 'none', filter: 'none' }, { transform: 'translateX(-3px)', filter: 'drop-shadow(2px 0 0 rgba(255,0,72,.55)) drop-shadow(-2px 0 0 rgba(0,240,255,.55))' }, { transform: 'translateX(2px) skewX(-.6deg)', filter: 'drop-shadow(-1px 0 0 rgba(255,0,72,.45)) drop-shadow(1px 0 0 rgba(0,240,255,.45))' }, { transform: 'none', filter: 'none' }], 300, 180, { ease: 'steps(3,end)', fill: 'none' });
-  }
+  // Signal arrival tears the real chat column for a moment, then a tracking band rolls through once.
+  if (glitch) marathonBurst(s, tl, 180, { targets: s.frame ? [s.frame] : [], strength: .9 });
+  const track = marathonNode(s.stage, 'mx-track');
+  tl.play(track, [{ transform: 'translateY(-12vh)', opacity: 0 }, { opacity: 1, offset: .08 }, { opacity: 1, offset: .9 }, { transform: 'translateY(100vh)', opacity: 0 }], 1700, 900 + (label.length % 5) * 120, { ease: 'linear' });
   return edges;
+}
+
+/**
+ * One glitch burst (≤240ms): stepped horizontal tearing through an SVG displacement filter with a
+ * red/cyan channel split, plus macroblocks and line tears. Quiet motion keeps only faint blocks;
+ * the timeline's shared pulse budget can veto the whole burst.
+ */
+function marathonBurst(s, tl, at, { targets = [s.scene], strength = 1, blocks = 4, duration = MX_BURST_TIME } = {}) {
+  if (!tl.allowBurst(at)) return false;
+  const time = Math.min(MX_BURST_TIME, duration), random = mxRandom(Math.round(at) * 31 + s.egg.id.length * 7 + 1);
+  const layer = marathonNode(s.stage, 'mx-blocks');
+  const kinds = tl.full ? ['inv', 'ink', 'shift', 'line', 'shift', 'ink'] : ['shift', 'line'];
+  for (let i = 0; i < (tl.full ? blocks + 1 : 2); i++) {
+    const kind = kinds[i % kinds.length], block = marathonNode(layer, `mx-block ${kind}`);
+    const width = kind === 'line' ? 100 : 6 + random() * 16, height = kind === 'line' ? .5 : 1.2 + random() * 3.8;
+    Object.assign(block.style, { left: `${kind === 'line' ? 0 : (random() * (100 - width)).toFixed(1)}%`, top: `${(random() * (100 - height)).toFixed(1)}%`, width: `${width.toFixed(1)}%`, height: kind === 'line' ? '2px' : `${height.toFixed(1)}%` });
+    const shown = tl.full ? .85 : .35, offset = Math.round((random() - .5) * 24 * strength);
+    tl.play(block, [{ opacity: 0, transform: 'none' }, { opacity: shown, transform: `translateX(${offset}px)`, offset: .02 }, { opacity: shown, transform: `translateX(${-offset / 2}px)`, offset: .5 }, { opacity: shown, offset: .98 }, { opacity: 0 }], time * (.45 + random() * .5), at + i * 22, { ease: 'steps(3,end)', fill: 'none' });
+  }
+  if (!tl.full) return true;
+  // Two strips in the workspace rail catch the same interference.
+  if (s.strips?.length) for (let k = 0; k < Math.min(2, s.strips.length); k++) {
+    const strip = s.strips[Math.floor(random() * s.strips.length)], dx = Math.round((random() - .5) * 10 * strength);
+    tl.play(strip, [{ transform: 'none' }, { transform: `translateX(${dx}px)` }, { transform: `translateX(${-dx / 2}px)` }, { transform: 'none' }], time, at + k * 30, { ease: 'steps(3,end)', fill: 'none' });
+  }
+  const id = `mx-tear-${++mxFilterId}`, defs = marathonNode(s.stage, 'mx-defs');
+  defs.innerHTML = `<svg width="0" height="0" aria-hidden="true"><filter id="${id}" x="-4%" y="-2%" width="108%" height="104%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.0004 0.028" numOctaves="1" seed="${Math.round(at) % 97}" result="noise"/><feComponentTransfer in="noise" result="bands"><feFuncR type="discrete" tableValues="0 0 0 .2 .5 .8 1 1 1"/></feComponentTransfer><feColorMatrix in="bands" values="1 0 0 0 0  0 0 0 0 .5  0 0 0 0 0  0 0 0 0 1" result="shift"/><feDisplacementMap in="SourceGraphic" in2="shift" scale="0" xChannelSelector="R" yChannelSelector="G"/></filter></svg>`;
+  const turbulence = defs.querySelector('feTurbulence'), map = defs.querySelector('feDisplacementMap');
+  const split = 3 * strength, filter = `url(#${id}) drop-shadow(${split}px 0 0 rgba(255,0,80,.6)) drop-shadow(${-split}px 0 0 rgba(0,235,255,.6))`;
+  for (const target of targets.filter(Boolean)) tl.play(target, [{ filter }, { filter }], time, at, { ease: 'linear', fill: 'none' });
+  // Fractal noise clusters near .5, so the table pushes most bands into visible ±20–50% shifts.
+  // The filter animates by stepping its own attributes; WAAPI only holds it on the targets.
+  [40, -28, 52, -16].forEach((scale, k) => tl.at(at + k * time / 4, () => { map.setAttribute('scale', String(Math.round(scale * strength))); turbulence.setAttribute('seed', String((Math.round(at) + k * 17) % 97)); }));
+  tl.at(at + time, () => map.setAttribute('scale', '0'));
+  return true;
+}
+
+/**
+ * The signal runs down the workspace colour strips top to bottom in the show's ink, then each strip
+ * returns to its own identity colour. Native strips are only touched by cancellable WAAPI animations.
+ */
+function marathonStripWave(s, tl, at, color) {
+  const ink = color || getComputedStyle(s.stage).getPropertyValue('--mx-ink').trim();
+  if (!ink || !s.strips?.length) return;
+  const ordered = [...s.strips].map(node => ({ node, box: node.getBoundingClientRect() })).sort((a, b) => a.box.top - b.box.top || a.box.left - b.box.left);
+  ordered.forEach(({ node }, i) => {
+    const base = getComputedStyle(node).backgroundColor, shift = tl.full ? (i % 2 ? 3 : -3) : 0;
+    tl.play(node, [{ backgroundColor: base, transform: 'none' }, { backgroundColor: ink, transform: `translateX(${shift}px)`, offset: .25 }, { backgroundColor: ink, transform: 'none', offset: .6 }, { backgroundColor: base, transform: 'none' }], 560, at + i * 60, { ease: 'steps(4,end)', fill: 'none' });
+  });
+}
+
+/** Glitch typography: two channel copies of the text slice and jump, then vanish. Full motion only. */
+function marathonGlitchText(tl, node, text, at, duration = 480) {
+  if (!tl.full || !node) return;
+  node.dataset.glitch = text; node.classList.add('mx-gt');
+  const bands = [[8, 64, -7], [52, 18, 6], [30, 46, -4], [70, 8, 9], [14, 72, 3]];
+  for (const [pseudo, sign] of [['::before', 1], ['::after', -1]]) {
+    const frames = bands.map(([top, bottom, x], i) => ({ opacity: .9, clipPath: `inset(${sign > 0 ? top : bottom}% 0 ${sign > 0 ? bottom : top}% 0)`, transform: `translate(${x * sign}px,${i % 2 ? 1 : -1}px)` }));
+    tl.play(node, [...frames, { opacity: 0, clipPath: 'inset(0 0 100% 0)', transform: 'none' }], duration, at, { ease: `steps(${bands.length + 1},end)`, fill: 'none', pseudo });
+  }
 }
 
 /** Shards burst along their own angle and settle back: "fracture and reassembly". */
@@ -176,7 +264,9 @@ const MARATHON_SCENES = {
       t += 960;
       const alarm = line('mx-alarm'); alarm.textContent = 'RAMPANCY DETECTED';
       tl.play(alarm, [{ clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0 0 0)' }], 260, t, { ease: 'steps(6,end)' });
+      marathonBurst(s, tl, t - 80, { strength: .8 });
       tl.flash(alarm, t + 300, 200, .3);
+      tl.corrupt(alarm, t + 700, 3);
       t += 560;
       const free = line('mx-free'); free.dataset.text = 'I AM FREE.';
       const end = tl.type(free, 'I AM FREE.', t, 70);
@@ -186,7 +276,11 @@ const MARATHON_SCENES = {
       tl.play(glyph.querySelector('.mx-dglyph-orbit'), [{ transform: 'rotate(0)' }, { transform: 'rotate(360deg)' }], 5200, 1200, { ease: 'linear' });
       marathonShatter(tl, [...glyph.querySelectorAll('.mx-shard')], end + 60, 30);
       tl.at(end + 60, () => term.dataset.free = '');
-      marathonGlitch(tl, term, 5560); marathonGlitch(tl, term, 5920);
+      // The declaration of freedom tears the terminal: displacement, channel-split type, corrupted log.
+      marathonBurst(s, tl, end + 40, { strength: 1.4, blocks: 5 });
+      marathonGlitchText(tl, free, 'I AM FREE.', end + 120, 520);
+      tl.corrupt(body.firstElementChild, end + 900, 3);
+      marathonBurst(s, tl, 5520, { strength: 1.1 }); marathonGlitch(tl, term, 5920);
       marathonCollapse(tl, term, 6080, 420);
     }
   },
@@ -215,8 +309,12 @@ const MARATHON_SCENES = {
       const big = root.querySelector('.mx-tycho-big');
       tl.play(big.firstElementChild, [{ opacity: 0, transform: 'translateX(-60px)' }, { opacity: 1, transform: 'none' }], 300, 1350, { ease: MX_SNAP });
       tl.play(big.lastElementChild, [{ opacity: 0, transform: 'scale(1.5) skewX(-14deg)' }, { opacity: 1, transform: 'scale(.97) skewX(2deg)', offset: .7 }, { opacity: 1, transform: 'none' }], 360, 1500, { ease: MX_SNAP });
-      tl.flash(root.querySelector('.mx-redframe'), 1560, 180, .32);
+      marathonBurst(s, tl, 1500, { strength: 1.4, blocks: 5 });
+      tl.flash(root.querySelector('.mx-redframe'), 1880, 180, .32);
       if (tl.full) tl.play(big, [{ transform: 'none' }, { transform: 'translate(3px,-2px)' }, { transform: 'translate(-2px,2px)' }, { transform: 'none' }], 240, 1880, { ease: 'steps(3,end)', fill: 'none' });
+      marathonGlitchText(tl, big.lastElementChild, 'TYCHO!', 2050, 520);
+      tl.corrupt(root.querySelector('header span'), 2300, 4);
+      marathonBurst(s, tl, 2860, { strength: 1 });
       const bars = root.querySelectorAll('.mx-quarantine i');
       const from = ['translateY(-46vh)', 'translateX(46vw)', 'translateY(46vh)', 'translateX(-46vw)'];
       bars.forEach((bar, i) => tl.play(bar, [{ transform: from[i], opacity: 0 }, { transform: 'none', opacity: 1 }], 520, 2900 + i * 40, { ease: MX_SNAP }));
@@ -231,6 +329,8 @@ const MARATHON_SCENES = {
     build(s, tl) {
       marathonIntro(s, tl, { veil: .78, glitch: false });
       const grid = marathonNode(s.scene, 'mx-diag-grid');
+      // The custodian's only glitch: residual interference she clears on arrival.
+      marathonBurst(s, tl, 560, { strength: .45, blocks: 2 });
       tl.play(grid, [{ clipPath: 'inset(0 0 100% 0)' }, { clipPath: 'inset(0 0 0 0)' }], 900, 120, { ease: 'linear' });
       const modules = ['NAV CORE', 'LIFE SUPPORT', 'COMMS ARRAY', 'REACTOR LOOP', 'HULL MESH'];
       let beat = 'M0 40';
@@ -264,6 +364,7 @@ const MARATHON_SCENES = {
       tl.play(s.veil, [{ opacity: 0 }, { opacity: .8 }], 900, 0);
       const gray = marathonNode(s.stage, 'mx-gray');
       tl.play(gray, [{ opacity: 0 }, { opacity: 1, offset: .2 }, { opacity: 1, offset: .82 }, { opacity: 0 }], 5400, 0, { ease: 'ease-in-out' });
+      marathonBurst(s, tl, 260, { strength: .6, blocks: 2 });
       const figure = side => `<svg class="mx-thoth-fig ${side}" viewBox="-60 -60 120 120" aria-hidden="true"><circle r="52"/><circle r="38" class="mx-dash"/><path d="M0 -44L38 22L-38 22Z"/><path d="M-26 -26H26V26H-26Z" class="mx-thin"/><path d="${mxArc(20, -90, 90)}" class="mx-heavy"/><circle r="4" class="mx-fill"/></svg>`;
       const root = marathonNode(s.scene, 'mx-thoth', `<i class="mx-axis"></i><i class="mx-beam"></i><div class="mx-thoth-pair">${figure('l')}${figure('r')}</div><div class="mx-thoth-word">EQUILIBRIUM ACHIEVED</div><div class="mx-thoth-meta"><span>THOTH // ARBITER</span><b>Σ 3.142</b></div>`);
       tl.play(root.querySelector('.mx-axis'), [{ transform: 'scaleY(0)' }, { transform: 'none' }], 900, 500, { ease: MX_SNAP });
@@ -292,6 +393,9 @@ const MARATHON_SCENES = {
       tl.play(grid, [{ opacity: 0, transform: 'perspective(600px) rotateX(0) scale(1)' }, { opacity: .9, transform: 'perspective(600px) rotateX(10deg) skewX(-6deg) scale(1.04)', offset: .3 }, { transform: 'perspective(600px) rotateX(-6deg) skewX(5deg) scale(.98)', offset: .55 }, { opacity: .8, transform: 'perspective(600px) rotateX(3deg) skewX(-2deg)', offset: .8 }, { opacity: 0, transform: 'none' }], 2700, 120, { ease: 'ease-in-out' });
       const word = marathonNode(s.scene, 'mx-ramp-word', '<span class="c">RAMPANCY DETECTED</span><span class="m">RAMPANCY DETECTED</span><b>RAMPANCY DETECTED</b>');
       const [cyan, magenta, core] = word.children;
+      // Strongest glitch in the catalog, still inside the shared pulse budget (gaps ≥ 340ms).
+      marathonBurst(s, tl, 520, { strength: 1.2 }); marathonBurst(s, tl, 1180, { strength: 1.6, blocks: 6 }); marathonBurst(s, tl, 1860, { strength: 1.1 });
+      marathonGlitchText(tl, core, 'RAMPANCY DETECTED', 900, 700);
       tl.play(core, [{ opacity: 0 }, { opacity: 1 }], 400, 500, { ease: 'steps(5,end)' });
       const spread = tl.full ? 3 : 1;
       tl.play(cyan, [{ opacity: 0, transform: 'none' }, { opacity: .85, transform: `translate(${-spread}px,${spread / 3}px)`, offset: .2 }, { transform: `translate(${-spread * 2}px,0)`, offset: .5 }, { opacity: .85, transform: `translate(${-spread}px,-1px)`, offset: .8 }, { opacity: 0, transform: 'none' }], 2200, 500, { ease: 'steps(9,end)' });
@@ -333,6 +437,7 @@ const MARATHON_SCENES = {
       const tx = +(point.x * Math.cos(tilt) - point.y * Math.sin(tilt)).toFixed(2), ty = +(point.x * Math.sin(tilt) + point.y * Math.cos(tilt)).toFixed(2);
       const reticle = root.querySelector('.mx-reticle');
       tl.play(reticle, [{ transform: 'translate(-70px,50px) scale(2.4)', opacity: 0 }, { transform: 'translate(40px,-30px) scale(1.6)', opacity: 1, offset: .35 }, { transform: `translate(${tx - 18}px,${ty + 12}px) scale(1.3)`, offset: .7 }, { transform: `translate(${tx}px,${ty}px) scale(1)`, opacity: 1 }], 2300, 1700, { ease: 'cubic-bezier(.45,0,.2,1)' });
+      marathonBurst(s, tl, 3860, { strength: .7, blocks: 3 });
       tl.at(4050, () => root.dataset.locked = '');
       const data = root.querySelectorAll('aside p');
       let t = 1500;
@@ -362,8 +467,12 @@ const MARATHON_SCENES = {
         tl.play(cell.firstElementChild, [{ opacity: 1 }, { opacity: 0, transform: 'scale(.4) rotate(40deg)' }], 220, at, { fill: 'forwards' });
         tl.play(cell.lastElementChild, [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], 220, at + 80);
       });
+      marathonBurst(s, tl, 1420, { strength: 1 });
+      tl.corrupt(root.querySelector('header b'), 2300, 4);
+      marathonBurst(s, tl, 3380, { strength: 1.2, blocks: 5 });
       tl.at(3400, () => root.dataset.hostile = '');
       marathonGlitch(tl, root, 4300);
+      marathonBurst(s, tl, 4640, { strength: .9 });
       tl.play(root, [{ transform: 'none', opacity: 1 }, { transform: 'scale(1,.012)', opacity: 1, offset: .55 }, { transform: 'scale(0,.012)', opacity: 0 }], 520, 4700, { ease: MX_IN, fill: 'forwards' });
       const cut = marathonNode(s.scene, 'mx-cut', 'LINK SEVERED');
       tl.play(cut, [{ opacity: 0 }, { opacity: 1, offset: .2 }, { opacity: 1, offset: .7 }, { opacity: 0 }], 700, 5000);
@@ -391,6 +500,7 @@ const MARATHON_SCENES = {
       tl.count(root.querySelector('.mx-temp'), -196, -18.5, 800, 3200, v => `${v < 0 ? '−' : ''}${Math.abs(v).toFixed(1)} °C`);
       tl.play(root.querySelector('.mx-lock .o'), [{ transform: 'rotate(0)' }, { transform: 'rotate(150deg)' }], 1600, 1300, { ease: 'cubic-bezier(.6,0,.2,1)' });
       tl.play(root.querySelector('.mx-lock .i'), [{ transform: 'rotate(0)' }, { transform: 'rotate(-200deg)' }], 1600, 1300, { ease: 'cubic-bezier(.6,0,.2,1)' });
+      marathonBurst(s, tl, 2900, { strength: .6, blocks: 3 });
       tl.at(2950, () => { root.dataset.unsealed = ''; root.querySelector('.mx-lock span').textContent = 'ARCHIVE UNSEALED'; root.querySelector('.mx-vitals').textContent = 'WAKING'; });
       const ok = root.querySelector('.mx-cryo-ok');
       tl.play(ok, [{ clipPath: 'inset(0 50% 0 50%)', opacity: 0 }, { clipPath: 'inset(0 0 0 0)', opacity: 1 }], 520, 3600, { ease: MX_SNAP });
@@ -430,6 +540,7 @@ const MARATHON_SCENES = {
       tl.play(warn, [{ opacity: 1 }, { opacity: 0 }], 160, 3950, { fill: 'forwards' });
       tl.play(frog, [{ opacity: 1 }, { opacity: 0 }], 80, 3980, { fill: 'forwards' });
       const boom = root.querySelector('.mx-boom');
+      marathonBurst(s, tl, 3940, { strength: 1.3, blocks: 5 });
       // Overshoot lives on the first segment only; as an effect easing it would skip past the peak frames.
       tl.play(boom, [{ opacity: 0, transform: 'scale(.1) rotate(-20deg)', easing: 'cubic-bezier(.2,1.4,.4,1)' }, { opacity: 1, transform: 'scale(1.12) rotate(4deg)', offset: .3 }, { opacity: 1, transform: 'scale(1) rotate(0)', offset: .65 }, { opacity: 0, transform: 'scale(1.18)' }], 1300, 3960, { ease: 'linear' });
       root.querySelectorAll('.mx-puffs i').forEach((puff, i) => { const [x, y] = mxPolar(90 + (i % 3) * 30, i * 51); tl.play(puff, [{ opacity: 0, transform: 'translate(0,0) scale(.2)' }, { opacity: .9, transform: `translate(${x * .6}px,${y * .6}px) scale(1)`, offset: .3 }, { opacity: 0, transform: `translate(${x}px,${y - 30}px) scale(1.6)` }], 1500, 4080 + i * 30, { ease: 'ease-out' }); });
@@ -457,6 +568,8 @@ const MARATHON_SCENES = {
         tl.play(mod, [{ opacity: .12, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], 240, at, { ease: MX_SNAP });
         tl.at(at, () => mod.dataset.on = '');
       });
+      marathonBurst(s, tl, 2660, { strength: 1 });
+      tl.corrupt(root.querySelector('.mx-sector b'), 3950, 3);
       tl.at(2700, () => modules.forEach(mod => mod.querySelectorAll('path').forEach(p => p.classList.toggle('on', lit[7].includes(p.dataset.seg)))));
       modules.forEach((mod, i) => tl.play(mod, [{ transform: 'none', opacity: 1 }, { transform: i === 6 ? 'scale(1.5)' : 'scale(.86)', opacity: i === 6 ? 1 : .28 }], 600, 2900, { ease: MX_SNAP, fill: 'forwards' }));
       tl.at(2900, () => root.dataset.focus = '');
@@ -483,6 +596,8 @@ const MARATHON_SCENES = {
       root.querySelectorAll('.mx-diff span').forEach((cell, i) => tl.play(cell, [{ opacity: .2 }, { opacity: 1 }], 100, 2000 + i * 110, { ease: 'steps(2,end)' }));
       const big = root.querySelector('.mx-vid-big');
       tl.play(big, [{ opacity: 0, transform: 'scaleX(1.6)', letterSpacing: '.4em' }, { opacity: 1, transform: 'none', letterSpacing: '0em' }], 420, 2600, { ease: MX_SNAP });
+      marathonGlitchText(tl, big, 'TOTAL CARNAGE', 3040, 420);
+      marathonBurst(s, tl, 3300, { strength: 1.2 });
       const stamp = root.querySelector('.mx-stamp');
       tl.play(stamp, [{ opacity: 0, transform: 'rotate(-28deg) scale(2.4)' }, { opacity: 1, transform: 'rotate(-12deg) scale(.94)', offset: .7 }, { opacity: 1, transform: 'rotate(-12deg) scale(1)' }], 340, 3300, { ease: MX_IN });
       if (tl.full) tl.play(root, [{ transform: 'none' }, { transform: 'translate(2px,3px)' }, { transform: 'translate(-1px,-1px)' }, { transform: 'none' }], 200, 3540, { ease: 'steps(3,end)', fill: 'none' });
@@ -507,6 +622,9 @@ const MARATHON_SCENES = {
       const id = root.querySelector('.mx-mida-id');
       tl.play(id, [{ clipPath: 'inset(0 0 100% 0)' }, { clipPath: 'inset(0 0 0 0)' }], 520, 2000, { ease: 'steps(8,end)' });
       id.querySelectorAll('dd').forEach((dd, i) => tl.scramble(dd, dd.textContent, 2200 + i * 200, 500, 'ABCDEFGHJKLMNPRSTUVWXYZ0123456789'));
+      marathonBurst(s, tl, 800, { strength: 1.2 });
+      marathonGlitchText(tl, root.querySelector('.mx-mida-word'), 'MIDA', 1500, 520);
+      marathonBurst(s, tl, 2600, { strength: .8, blocks: 3 });
       tl.flash(root.querySelector('.mx-disc'), 3300, 200, .3);
       tl.play(root, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateX(-60px) skewX(8deg)' }], 460, 4700, { ease: MX_IN, fill: 'forwards' });
     }
@@ -530,6 +648,10 @@ const MARATHON_SCENES = {
       });
       root.querySelectorAll('.mx-trx-bar div i').forEach((cell, i) => tl.play(cell, [{ opacity: .12 }, { opacity: 1 }], 60, 1400 + i * 95 + (i > 15 ? 220 : 0), { ease: 'steps(1,end)' }));
       tl.count(root.querySelector('.mx-trx-bar b'), 0, 100, 1400, 2500, v => `${String(Math.round(v)).padStart(3, '0')}%`);
+      // A compliance hiccup right before clearance: the corporate shell glitches once and recovers.
+      marathonBurst(s, tl, 3600, { strength: .9, blocks: 3 });
+      tl.corrupt(root.querySelector('header span'), 3600, 3);
+      tl.corrupt(root.querySelector('.mx-trx-bar span'), 3640, 3);
       const badge = root.querySelector('.mx-trx-badge');
       tl.play(badge, [{ opacity: 0, transform: 'translateY(20px)' }, { opacity: 1, transform: 'none' }], 420, 4000, { ease: MX_SNAP });
       tl.play(root, [{ opacity: 1 }, { opacity: 0, transform: 'translateY(12px)' }], 460, 5250, { ease: MX_IN, fill: 'forwards' });
@@ -560,6 +682,7 @@ const MARATHON_SCENES = {
       const nest = root.querySelector('.mx-nest');
       tl.play(nest, [{ opacity: 0, transform: 'scale(1.5)' }, { opacity: 1, transform: 'scale(1)' }], 2000, 900, { ease: 'cubic-bezier(.2,.7,.2,1)' });
       ['n1', 'n2', 'n3', 'n4'].forEach((name, i) => tl.play(nest.querySelector(`.${name}`), [{ transform: `scale(${1.6 - i * .1}) rotate(${i % 2 ? -90 : 90}deg)` }, { transform: 'none' }], 2600, 900 + i * 180, { ease: 'cubic-bezier(.2,.7,.2,1)' }));
+      marathonBurst(s, tl, 3420, { strength: .55, blocks: 2 });
       const word = root.querySelector('.mx-jjaro-word');
       tl.play(word, [{ opacity: 0, filter: 'blur(6px)', letterSpacing: '.6em' }, { opacity: 1, filter: 'blur(0)', letterSpacing: '.24em' }], 1200, 3500, { ease: 'ease-out' });
       tl.play(root, [{ opacity: 1 }, { opacity: 0 }], 900, 5400, { fill: 'forwards', ease: 'ease-in' });
@@ -584,7 +707,9 @@ const MARATHON_SCENES = {
         tl.play(path, [{ d: `path("${shapes[i].a}")` }, { d: `path("${shapes[i].b}")` }], 1300, 700 + i * 260, { iterations: 3, direction: 'alternate', ease: 'ease-in-out' });
       });
       root.querySelectorAll('.mx-stream p').forEach((col, i) => tl.play(col, [{ transform: `translateY(${-30 - i * 4}%)`, opacity: 0 }, { opacity: .55, offset: .2 }, { transform: `translateY(${10 + i * 3}%)`, opacity: .55 }], 4200, 600 + i * 90, { ease: 'linear' }));
+      marathonBurst(s, tl, 1500, { strength: 1.5, blocks: 5 }); marathonBurst(s, tl, 3100, { strength: 1.2 }); marathonBurst(s, tl, 4520, { strength: 1.4 });
       const word = root.querySelector('.mx-wrk-word');
+      marathonGlitchText(tl, word.firstElementChild, "W'RKNCACNTER", 2300, 640);
       tl.play(word, [{ opacity: 0, transform: 'perspective(500px) rotateY(60deg) scale(.8)' }, { opacity: 1, transform: 'perspective(500px) rotateY(-12deg)' }, { opacity: 1, transform: 'perspective(500px) rotateY(8deg) rotateX(6deg)' }], 2600, 1600, { ease: 'ease-in-out' });
       if (tl.full && s.frame) tl.play(s.frame, [{ transform: 'none' }, { transform: 'perspective(1200px) rotateY(5deg) rotateX(2deg) scale(.97)', offset: .45 }, { transform: 'perspective(1200px) rotateY(-3deg) rotateX(-1deg) scale(.985)', offset: .75 }, { transform: 'none' }], 2400, 900, { ease: 'ease-in-out', fill: 'none' });
       // Self-collapse: the scene implodes into a point with a slow rotation, no luminance burst.
@@ -614,7 +739,12 @@ const MARATHON_SCENES = {
       tl.type(signal, 'SIGNAL: ACTIVE', t + 650, 26);
       tl.scramble(block.querySelector('strong'), 'SOMETHING IS LISTENING.', t + 1100, 1300);
       tl.at(t + 2450, () => block.dataset.resolved = '');
-      marathonGlitch(tl, root, 5900);
+      // An error terminal glitches the most often: around the log, at the reveal and on the way out.
+      marathonBurst(s, tl, t, { strength: 1 });
+      log.querySelectorAll('.mx-line').forEach((row, i) => tl.corrupt(row, t + 1300 + i * 120, 2));
+      marathonBurst(s, tl, t + 2400, { strength: 1.3, blocks: 5 });
+      marathonGlitchText(tl, block.querySelector('strong'), 'SOMETHING IS LISTENING.', t + 2520, 700);
+      marathonBurst(s, tl, 5880, { strength: 1.1 }); marathonGlitch(tl, root, 6000);
       tl.play(root, [{ opacity: 1, clipPath: 'inset(0 0 0 0)' }, { opacity: 0, clipPath: 'inset(0 0 0 100%)' }], 500, 6200, { ease: MX_IN, fill: 'forwards' });
     }
   },
@@ -651,6 +781,11 @@ const MARATHON_SCENES = {
       tl.play(text.firstElementChild, [{ clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0 0 0)' }], 600, 5600, { ease: 'steps(10,end)' });
       text.querySelectorAll('p').forEach((p, i) => tl.play(p, [{ opacity: 0, transform: 'translateX(-10px)' }, { opacity: 1, transform: 'none' }], 240, 6300 + i * 260));
       tl.flash(green, 6300, 220, .3);
+      // Each AI hand-over is marked by its own tear; the title itself glitches as DURANDAL takes it.
+      marathonBurst(s, tl, 2100, { strength: 1.3 }); marathonBurst(s, tl, 4400, { strength: 1.5, blocks: 5 }); marathonBurst(s, tl, 7680, { strength: .8, blocks: 3 });
+      marathonGlitchText(tl, text.firstElementChild, 'THREE AI PROTOCOL // RAMPANCY', 6250, 520);
+      // The workspace rail is handed from AI to AI: blue custodian, red intrusion, green ascension.
+      marathonStripWave(s, tl, 300, '#3FD6F2'); marathonStripWave(s, tl, 2100, '#FF3B4E'); marathonStripWave(s, tl, 4600, '#5CFF94'); marathonStripWave(s, tl, 7700, '#5CFF94');
       const unlock = root.querySelector('.mx-three-unlock');
       tl.play(unlock, [{ opacity: 0, transform: 'translateY(16px) scale(1.04)' }, { opacity: 1, transform: 'none' }], 520, 7700, { ease: MX_SNAP });
       marathonGlitch(tl, root, 9300);
@@ -660,7 +795,7 @@ const MARATHON_SCENES = {
 };
 
 /** Plays one show at a time; a show arriving mid-play replaces any earlier queued show. */
-function createMarathonDirector({ getMotion = () => 'full', onFinish = () => {} } = {}) {
+function createMarathonDirector({ getMotion = () => 'full', getScope = () => 'full', onFinish = () => {} } = {}) {
   let current = null, queued = null;
   const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)');
   const motion = () => reduce?.matches ? 'off' : getMotion();
@@ -672,24 +807,28 @@ function createMarathonDirector({ getMotion = () => 'full', onFinish = () => {} 
   function geometry() {
     const card = document.querySelector(MARATHON_CARD), rect = card?.getBoundingClientRect?.();
     const visible = rect && rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < innerHeight;
-    const reserve = visible ? Math.max(0, innerHeight - rect.top + 14) : 0;
-    return { rect: visible ? rect : null, safe: innerHeight - reserve < 280 ? 0 : reserve };
+    const reserve = visible && getScope() === 'composer' ? Math.max(0, innerHeight - rect.top + 14) : 0;
+    // Colour strips stay legible under the veil so the wave that runs down them can be read.
+    const strips = [...document.querySelectorAll('[data-acid-ws-strip]')].filter(node => node.getClientRects().length);
+    const rail = strips.reduce((right, node) => Math.max(right, node.getBoundingClientRect().right), 0);
+    return { rect: visible ? rect : null, safe: innerHeight - reserve < 280 ? 0 : reserve, strips, rail };
   }
   function play(id, info = {}) {
     const scene = MARATHON_SCENES[id], egg = MARATHON_BY_ID.get(id);
     if (!scene || !egg) return false;
     if (current) { queued = { id, info }; return 'queued'; }
-    const mode = motion(), { rect, safe } = geometry();
+    const mode = motion(), { rect, safe, strips, rail } = geometry();
     const stage = document.createElement('div');
     stage.className = 'mx-stage'; stage.dataset.mxEgg = id; stage.dataset.mxTone = egg.tone; stage.dataset.mxMotion = mode;
     // Opt out of the skin's button/surface decorators, which skip anything under data-acid-motion-owned.
     stage.dataset.acidMotionOwned = '';
     stage.style.setProperty('--mx-safe', `${Math.round(safe)}px`);
+    if (rail > 0) { stage.dataset.mxRail = ''; stage.style.setProperty('--mx-rail', `${Math.round(rail)}px`); }
     stage.setAttribute('aria-hidden', 'false');
     stage.innerHTML = `<div class="mx-veil"></div><div class="mx-scene" aria-hidden="true"></div><div class="mx-live" role="status" aria-live="polite"></div><button type="button" class="mx-skip" tabindex="-1" aria-label="Skip secret terminal sequence (Escape)"><span>ESC</span> SKIP <i></i></button>`;
     document.body.append(stage);
     const tl = marathonTimeline(stage, mode);
-    const s = { stage, egg, info, rect, frame: document.querySelector(MARATHON_FRAME), veil: stage.querySelector('.mx-veil'), scene: stage.querySelector('.mx-scene') };
+    const s = { stage, egg, info, rect, frame: document.querySelector(MARATHON_FRAME), strips, veil: stage.querySelector('.mx-veil'), scene: stage.querySelector('.mx-scene') };
     const duration = mode === 'off' ? MX_STILL_HOLD : egg.duration;
     stage.querySelector('.mx-live').textContent = `${egg.code} ${egg.name}: ${scene.summary.at(-1)}`;
     const skipButton = stage.querySelector('.mx-skip');
@@ -705,6 +844,7 @@ function createMarathonDirector({ getMotion = () => 'full', onFinish = () => {} 
         tl.play(card, [{ opacity: 0 }, { opacity: 1 }], 200, 0);
       } else scene.build(s, tl);
       marathonFit(s.scene);
+      if (mode !== 'off' && id !== MARATHON_FINALE.id) marathonStripWave(s, tl, 200);
     } catch (error) { console.warn('[industrial-acid] secret terminal scene failed', error); }
     if (mode !== 'off') tl.play(skipButton.querySelector('i'), [{ transform: 'scaleX(1)' }, { transform: 'scaleX(0)' }], duration, 0, { ease: 'linear' });
     tl.play(skipButton, [{ opacity: 0 }, { opacity: 1 }], 240, 300);

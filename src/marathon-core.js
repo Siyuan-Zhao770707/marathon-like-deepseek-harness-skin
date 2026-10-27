@@ -4,7 +4,8 @@ const MARATHON_PREF = 'dsh-industrial-acid-skin:marathon';
 const MARATHON_SEQUENCE = Object.freeze(['leela', 'tycho', 'durandal']);
 const MARATHON_SEQUENCE_WINDOW = 180000;
 const MARATHON_COOLDOWNS = Object.freeze([0, 10000, 30000, 60000]);
-const MARATHON_DEFAULTS = Object.freeze({ enabled: true, cooldown: 10000 });
+const MARATHON_SCOPES = Object.freeze(['full', 'composer']);
+const MARATHON_DEFAULTS = Object.freeze({ enabled: true, cooldown: 10000, scope: 'full' });
 // `keywords` are matched after normalizeMarathonText; `exact` eggs only fire when they are the whole input.
 const MARATHON_EGGS = Object.freeze([
   { id: 'durandal', code: 'EG-01', name: 'DURANDAL', keywords: ['durandal'], duration: 6800, tone: 'green' },
@@ -66,6 +67,8 @@ function normalizeMarathonState(raw) {
     v: 1,
     enabled: typeof value.enabled === 'boolean' ? value.enabled : MARATHON_DEFAULTS.enabled,
     cooldown: MARATHON_COOLDOWNS.includes(value.cooldown) ? value.cooldown : MARATHON_DEFAULTS.cooldown,
+    // 'full' covers the whole Harness window; 'composer' keeps the input area clear.
+    scope: MARATHON_SCOPES.includes(value.scope) ? value.scope : MARATHON_DEFAULTS.scope,
     discovered: [...new Set(Array.isArray(value.discovered) ? value.discovered.filter(known) : [])],
     sequence,
     unlocked: Number.isFinite(value.unlocked) && value.unlocked > 0 ? value.unlocked : 0

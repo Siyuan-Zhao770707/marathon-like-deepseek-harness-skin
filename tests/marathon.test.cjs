@@ -126,11 +126,11 @@ test('stored progress holds only IDs and timestamps, never composer text, and su
   deepEqual(plays, ['durandal']);
   const raw = storage.get(api.MARATHON_PREF);
   assert.doesNotMatch(raw, /hunter2|secret|passphrase/);
-  deepEqual(Object.keys(JSON.parse(raw)).sort(), ['cooldown', 'discovered', 'enabled', 'sequence', 'unlocked', 'v']);
+  deepEqual(Object.keys(JSON.parse(raw)).sort(), ['cooldown', 'discovered', 'enabled', 'scope', 'sequence', 'unlocked', 'v']);
   assert.equal(field.textContent, 'my secret passphrase is hunter2 then durandal', 'input text untouched');
   dispose();
   const clean = api.normalizeMarathonState({ enabled: 'yes', cooldown: 999, discovered: ['durandal', 'durandal', '<script>', 7], sequence: { step: 9, at: 'x' }, unlocked: -1, text: 'leak' });
-  deepEqual(JSON.parse(JSON.stringify(clean)), { v: 1, enabled: true, cooldown: 10000, discovered: ['durandal'], sequence: { step: 0, at: 0 }, unlocked: 0 });
+  deepEqual(JSON.parse(JSON.stringify(clean)), { v: 1, enabled: true, cooldown: 10000, scope: 'full', discovered: ['durandal'], sequence: { step: 0, at: 0 }, unlocked: 0 });
   storage.set(api.MARATHON_PREF, '{not json');
   assert.equal(api.createMarathonStore().get().enabled, true);
 });
@@ -205,6 +205,66 @@ test('RAMPANCY // TERMINAL GREEN stays inside the palette pipeline and keeps tex
     for (const kind of ['error', 'success', 'warn']) assert.equal(tokens[`--dsw-alias-state-${kind}-primary`], undefined);
   }
   deepEqual(api.normalizePalettes(api.MARATHON_THEME), JSON.parse(JSON.stringify(api.MARATHON_THEME)));
+});
+
+test('glitch bursts and flashes share one photosensitivity budget; reduced motion has none', () => {
+  // Expose the private timeline in this VM only, as random-max.test.cjs does for its component.
+  let api;
+  const source = fs.readFileSync(path.join(root, 'lib/client.js'), 'utf8').replace("return { inject: ['slots'", "return { marathonTimeline, inject: ['slots'");
+  vm.runInNewContext(source, { window: { __ModuleLoader__: { load: module => { api = module.factory(() => ({})); } } }, setTimeout, clearTimeout, performance });
+  const full = api.marathonTimeline({}, 'full');
+  assert.equal(full.allowBurst(0), true);
+  assert.equal(full.allowBurst(200), false, 'too close to the previous burst');
+  assert.equal(full.allowBurst(340), true);
+  full.flash({}, 500);
+  assert.equal(full.flashes.length, 0, 'a flash cannot crowd a burst');
+  for (const at of [1000, 2000, 3000, 4000, 5000, 6000]) full.allowBurst(at);
+  assert.equal(full.bursts.length, 6, 'per-show burst cap');
+  const pulses = [...full.bursts, ...full.flashes].sort((a, b) => a - b);
+  for (let i = 1; i < pulses.length; i++) assert.ok(pulses[i] - pulses[i - 1] >= 340, 'fewer than 3 pulses per second');
+  assert.equal(api.marathonTimeline({}, 'quiet').allowBurst(0), true, 'quiet keeps softened blocks');
+  assert.equal(api.marathonTimeline({}, 'off').allowBurst(0), false);
+});
+
+test('shows default to the full Harness window; the composer-clear area is an explicit choice', () => {
+  const { api } = load();
+  assert.equal(api.normalizeMarathonState({}).scope, 'full');
+  assert.equal(api.normalizeMarathonState({ scope: 'composer' }).scope, 'composer');
+  assert.equal(api.normalizeMarathonState({ scope: 'everywhere' }).scope, 'full');
+});
+
+test('workspace strips rank pending input over work over unread completion, using session ids only', () => {
+  const { api } = load();
+  const items = [{ workspaceId: 'a', sessionIds: ['a1', 'a2'] }, { workspaceId: 'b', sessionIds: ['b1'] }, { workspaceId: 'c', sessionIds: ['c1', 'c2'] }, { workspaceId: 'd', sessionIds: ['d1'] }, { workspaceId: 'e' }];
+  const statuses = new Map([
+    ['a1', { running: false, completionUnread: true }], ['a2', { running: true, completionUnread: false }],
+    ['b1', { running: false, completionUnread: true }],
+    ['c1', { running: true }], ['c2', { running: false, pendingInteraction: { kind: 'approval' }, completionUnread: false }],
+    ['d1', { running: false, completionUnread: false }]
+  ]);
+  deepEqual(api.workspaceActivity(items, statuses), { a: 'working', b: 'done', c: 'attention' });
+  deepEqual(api.workspaceActivity(items, undefined), {});
+  // The relay starts empty, follows an attached source and detaches cleanly.
+  const relay = api.createStatusRelay();
+  let notified = 0, listener;
+  relay.subscribe(() => notified++);
+  assert.equal(relay.getSnapshot().size, 0);
+  relay.attach({ getSnapshot: () => statuses, subscribe: fn => { listener = fn; return () => { listener = undefined; }; } });
+  assert.equal(relay.getSnapshot(), statuses);
+  listener(); assert.equal(notified, 2);
+  relay.attach(null);
+  assert.equal(listener, undefined); assert.equal(relay.getSnapshot().size, 0);
+});
+
+test('strip loops are owned by the skin, use ink on identity colours and stop when motion is off', () => {
+  const css = fs.readFileSync(path.join(root, 'src/sidebar-next.css'), 'utf8');
+  for (const state of ['working', 'attention', 'done']) {
+    const rule = css.split(`[data-acid-ws-status=${state}] .wnFoaW_projectRow:after{`)[1]?.split('}')[0] ?? '';
+    assert.ok(rule.includes(`animation:acid-ws-${state}`), state);
+    assert.ok(rule.includes('%230B0C0D'), `${state} badge uses strip ink`);
+  }
+  assert.ok(css.includes('motion=off] [data-acid-ws-strip][data-acid-ws-status] .wnFoaW_projectRow:after{animation:none!important}'));
+  assert.ok(css.includes('prefers-reduced-motion:reduce){[data-acid-ws-strip][data-acid-ws-status] .wnFoaW_projectRow:after{animation:none!important}'));
 });
 
 test('secret terminal styles stay in their own namespace and never redefine skin tokens', () => {

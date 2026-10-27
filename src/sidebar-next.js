@@ -89,6 +89,35 @@ function stripPlacement(index){
   return {column:index%2+1,row:index+1,span:2,lead:index===0};
 }
 
+// Strip activity from the native per-session status store: a pending approval/answer outranks a
+// running turn, which outranks an unread completion. Sessions are matched by id; no content is read.
+const WORKSPACE_ACTIVITY=Object.freeze(['attention','working','done']);
+function workspaceActivity(items,statuses){
+  const out={};
+  for(const item of items||[]){
+    let rank=WORKSPACE_ACTIVITY.length;
+    for(const id of item?.sessionIds||[]){
+      const status=statuses?.get?.(id);if(!status)continue;
+      const next=status.pendingInteraction!==undefined?0:status.running===true?1:status.completionUnread===true?2:rank;
+      if(next<rank)rank=next;if(rank===0)break;
+    }
+    if(rank<WORKSPACE_ACTIVITY.length)out[String(item.workspaceId)]=WORKSPACE_ACTIVITY[rank];
+  }
+  return out;
+}
+// The status service arrives through a deferred inject; until then strips simply show no activity.
+const EMPTY_STATUS=new Map();
+function createStatusRelay(){
+  const listeners=new Set();let source=null,release=null;
+  const emit=()=>{for(const listener of listeners)listener();};
+  return {
+    getSnapshot:()=>source?.getSnapshot?.()??EMPTY_STATUS,
+    subscribe(listener){listeners.add(listener);return()=>listeners.delete(listener);},
+    attach(next){release?.();release=null;source=next?.getSnapshot&&next?.subscribe?next:null;if(source)release=source.subscribe(emit);emit();}
+  };
+}
+const idleStatusSource={getSnapshot:()=>EMPTY_STATUS,subscribe:()=>()=>{}};
+
 function fallbackName(item){return item?.title||item?.name||item?.path?.split(/[\\/]/).filter(Boolean).at(-1)||'—';}
 function nextSidebarList(){
   const frame=[...document.querySelectorAll('.mP3x-q_frame')].find(node=>!node.closest('[data-acid-motion-owned]'));
@@ -163,13 +192,15 @@ function WorkspaceFlyout({state,t,onEnter,onLeave,onClose,motion}){
       h('p',{className:'acid-ws-fly-empty'},'NO CONVERSATIONS // —')),document.body);
 }
 
-function SidebarNext({items,numbers,workspaceId,onPick,t,motion,toggleSidebar}){
+function SidebarNext({items,numbers,workspaceId,onPick,t,motion,toggleSidebar,statusSource=idleStatusSource}){
   const [list,setList]=React.useState(null),[tick,setTick]=React.useState(0),[fly,setFly]=React.useState(null);
   const timers=React.useRef({}),flyRef=React.useRef(null),expanded=React.useRef(new Set());
   flyRef.current=fly;
   const ids=items.map(item=>String(item.workspaceId));
   const identity=React.useMemo(()=>workspaceIdentity(ids,numbers),[ids.join('|'),JSON.stringify(numbers||{})]);
   const byId=React.useMemo(()=>new Map(items.map((item,i)=>[String(item.workspaceId),{item,index:i}])),[items]);
+  const statuses=React.useSyncExternalStore(statusSource.subscribe,statusSource.getSnapshot,statusSource.getSnapshot);
+  const activity=React.useMemo(()=>workspaceActivity(items,statuses),[items,statuses]);
   const live=React.useRef({});live.current={identity,byId,onPick,workspaceId,numbers};
   // Locate the native workspace tree in the main frame.
   React.useLayoutEffect(()=>{
@@ -216,9 +247,10 @@ function SidebarNext({items,numbers,workspaceId,onPick,t,motion,toggleSidebar}){
       group.style.setProperty('--acid-ws-fill',Math.min(1,count/12).toFixed(3));
       group.dataset.acidWsStrip=place.lead?'lead':'strip';group.dataset.acidWsCount=row.dataset.acidCount=String(count).padStart(2,'0');
       if(id===String(workspaceId))group.dataset.acidWsActive='';else delete group.dataset.acidWsActive;
+      const state=activity[id];if(state)group.dataset.acidWsStatus=state;else delete group.dataset.acidWsStatus;
       // Native rows are not focusable; give each strip a tab stop so focus opens its card.
       if(row.getAttribute('tabindex')!=='0'){row.setAttribute('tabindex','0');row.dataset.acidTab='';}
-      row.setAttribute('aria-label',`${formatWorkspaceIndex(i+1)} ${row.querySelector('.wnFoaW_title')?.textContent||fallbackName(byId.get(id)?.item)}`);
+      row.setAttribute('aria-label',`${formatWorkspaceIndex(i+1)} ${row.querySelector('.wnFoaW_title')?.textContent||fallbackName(byId.get(id)?.item)}${state?` · ${t(`ws.${state}`)}`:''}`);
       const item=byId.get(id)?.item,title=row.querySelector('.wnFoaW_title'),fallback=item?.title||item?.name||item?.path?.split(/[\\/]/).filter(Boolean).at(-1)||'—';
       if(title&&title.dataset.acidFallback!==fallback)title.dataset.acidFallback=fallback;
 
@@ -228,7 +260,7 @@ function SidebarNext({items,numbers,workspaceId,onPick,t,motion,toggleSidebar}){
     if(!list)return;list.removeAttribute('data-acid-ws-grid');
     for(const group of list.querySelectorAll('[data-acid-ws-strip]')){
       for(const name of ['grid-column','grid-row','--acid-ws-id','--acid-ws-id-fore','--acid-ws-fill'])group.style.removeProperty(name);
-      delete group.dataset.acidWsStrip;delete group.dataset.acidWsCount;delete group.dataset.acidWsActive;const row=group.querySelector('[data-row-key^="workspace:"]');if(row){if(row.dataset.acidTab!==undefined){row.removeAttribute('tabindex');delete row.dataset.acidTab;}row.removeAttribute('aria-label');delete row.dataset.acidCount;const title=row.querySelector('.wnFoaW_title');if(title)delete title.dataset.acidFallback;}
+      delete group.dataset.acidWsStrip;delete group.dataset.acidWsCount;delete group.dataset.acidWsActive;delete group.dataset.acidWsStatus;const row=group.querySelector('[data-row-key^="workspace:"]');if(row){if(row.dataset.acidTab!==undefined){row.removeAttribute('tabindex');delete row.dataset.acidTab;}row.removeAttribute('aria-label');delete row.dataset.acidCount;const title=row.querySelector('.wnFoaW_title');if(title)delete title.dataset.acidFallback;}
     }
   },[list]);
   // Interaction: strips open their workspace; hover/focus opens the flyout.

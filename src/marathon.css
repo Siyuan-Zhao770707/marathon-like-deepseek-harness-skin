@@ -19,6 +19,7 @@
 .mx-stage[data-mx-tone=void]{--mx-bg:#000;--mx-ink:#FF4FB4;--mx-hot:#C7FF4F;--mx-dim:#3A1030}
 .mx-stage[data-mx-tone=null]{--mx-bg:#030405;--mx-ink:#D8DEE3;--mx-hot:#FF4D4D;--mx-dim:#4B535A}
 .mx-veil{position:absolute;left:0;right:0;top:0;bottom:var(--mx-safe);background:var(--mx-bg);opacity:0}
+.mx-stage[data-mx-rail] .mx-veil{-webkit-mask:linear-gradient(90deg,rgba(0,0,0,.4) 0 var(--mx-rail),#000 calc(var(--mx-rail) + 28px));mask:linear-gradient(90deg,rgba(0,0,0,.4) 0 var(--mx-rail),#000 calc(var(--mx-rail) + 28px))}
 .mx-veil::after{content:'';position:absolute;left:0;right:0;top:100%;height:28px;background:linear-gradient(var(--mx-bg),transparent)}
 .mx-scene{position:absolute;left:0;right:0;top:0;bottom:var(--mx-safe);display:grid;place-items:center;padding:24px 16px;overflow:hidden}
 .mx-stage[data-mx-seq] .mx-scene{padding-top:68px}
@@ -39,6 +40,20 @@
 .mx-cfx i{position:absolute;left:0;right:0;height:9%;background:color-mix(in srgb,currentColor 38%,transparent);mix-blend-mode:screen;opacity:0}
 .mx-cfx span{position:absolute;left:0;bottom:calc(100% + 10px);padding:3px 8px;background:var(--mx-bg);border:1px solid currentColor;font:600 10px/1.2 var(--acid-mono,monospace);letter-spacing:.18em;white-space:nowrap}
 .mx-noise{position:absolute;inset:0;opacity:0;mix-blend-mode:screen;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.4 -.4'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E")}
+/* Glitch vocabulary: macroblocks, line tears, a tracking band and channel-split type. Every piece is
+   driven by short WAAPI bursts from the timeline's shared pulse budget; nothing loops on its own. */
+.mx-defs{position:absolute;width:0;height:0;overflow:hidden}
+.mx-blocks{position:absolute;left:0;right:0;top:0;bottom:var(--mx-safe);overflow:hidden}
+.mx-block{position:absolute;opacity:0}
+.mx-block.inv{-webkit-backdrop-filter:invert(1) hue-rotate(180deg);backdrop-filter:invert(1) hue-rotate(180deg)}
+.mx-block.ink{background:var(--mx-ink);mix-blend-mode:difference}
+.mx-block.shift{-webkit-backdrop-filter:hue-rotate(110deg) saturate(2.6) contrast(1.3);backdrop-filter:hue-rotate(110deg) saturate(2.6) contrast(1.3);box-shadow:inset 0 1px 0 color-mix(in srgb,var(--mx-hot) 60%,transparent)}
+.mx-block.line{background:var(--mx-hot);box-shadow:0 0 8px var(--mx-ink)}
+.mx-track{position:absolute;left:0;right:0;top:0;height:9vh;opacity:0;-webkit-backdrop-filter:hue-rotate(28deg) brightness(1.18);backdrop-filter:hue-rotate(28deg) brightness(1.18);border-top:1px solid color-mix(in srgb,var(--mx-ink) 55%,transparent);border-bottom:1px solid color-mix(in srgb,var(--mx-ink) 30%,transparent);background:repeating-linear-gradient(0deg,color-mix(in srgb,var(--mx-ink) 9%,transparent) 0 1px,transparent 1px 3px)}
+.mx-gt{position:relative}
+.mx-gt::before,.mx-gt::after{content:attr(data-glitch);position:absolute;inset:0;opacity:0;pointer-events:none;text-shadow:none;background:none;white-space:inherit}
+.mx-gt::before{color:#29F0FF;mix-blend-mode:screen}
+.mx-gt::after{color:#FF2D6F;mix-blend-mode:screen}
 .mx-caret::after{content:'';display:inline-block;width:.55em;height:1em;margin-left:2px;vertical-align:-.12em;background:currentColor}
 .mx-hazard{display:block;width:72px;height:10px;background:repeating-linear-gradient(-45deg,var(--mx-ink) 0 6px,transparent 6px 12px)}
 .mx-glyph{width:12px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:square}.mx-glyph circle{fill:currentColor;stroke:none}

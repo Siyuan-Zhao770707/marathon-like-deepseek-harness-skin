@@ -27,8 +27,8 @@ window.__ModuleLoader__.load({
       en: { 'workspace': 'WORKSPACE', 'none': 'No workspace selected', 'plugins': 'Plugins', 'settings': 'Settings', 'canvas': 'Skin appearance', 'canvas.description': 'Day and night switch the entire skin. Follow app uses the existing appearance setting.', 'paper': 'Day', 'night': 'Night', 'adaptive': 'Follow app', 'local': 'LOCAL WORKSPACE', 'palette': 'Palette', 'palette.description': 'Updates immediately. Day and night palettes are saved separately.', 'accent': 'Acid accent', 'signal': 'Interaction', 'surface': 'Reading canvas', 'text': 'Text', 'acid': 'Classic acid', 'orange': 'Industrial orange', 'polar': 'Polar signal', 'reset': 'Reset palette', 'contrast': 'Text contrast', 'adjusted': 'Text contrast enhanced; effective color', 'hex': 'HEX color', 'motion': 'Motion', 'full': 'Full', 'quiet': 'Quiet', 'off': 'Off' }
     };
 
-    Object.assign(dictionaries.zh, { 'sidebarStyle': '工作区样式', 'sidebarStyle.description': '切换后立即生效，并保留现有工作区和会话。', 'sidebarStyle.next': '新版色条', 'sidebarStyle.classic': '经典工作区' });
-    Object.assign(dictionaries.en, { 'sidebarStyle': 'Workspace style', 'sidebarStyle.description': 'Applies immediately and keeps existing workspaces and conversations.', 'sidebarStyle.next': 'Color strips', 'sidebarStyle.classic': 'Classic workspaces' });
+    Object.assign(dictionaries.zh, { 'ws.working': '工作中', 'ws.done': '已完成', 'ws.attention': '等待确认', 'sidebarStyle': '工作区样式', 'sidebarStyle.description': '切换后立即生效，并保留现有工作区和会话。', 'sidebarStyle.next': '新版色条', 'sidebarStyle.classic': '经典工作区' });
+    Object.assign(dictionaries.en, { 'ws.working': 'Working', 'ws.done': 'Completed', 'ws.attention': 'Needs input', 'sidebarStyle': 'Workspace style', 'sidebarStyle.description': 'Applies immediately and keeps existing workspaces and conversations.', 'sidebarStyle.next': 'Color strips', 'sidebarStyle.classic': 'Classic workspaces' });
 
     // Semantic statuses are intentionally owned by the original application.
     function tokenOverrides(canvas, inputPalettes) {
@@ -108,6 +108,10 @@ window.__ModuleLoader__.load({
       const useMarathon = () => React.useSyncExternalStore(marathonStore.subscribe, marathonStore.get, marathonStore.get);
       let marathonDirector;
       const playMarathon = (id, info) => marathonDirector?.play(id, info);
+      // Workspace strips loop while a session works or has an unread completion. uiSession is a deferred
+      // inject: without it the skin still loads and the strips stay static.
+      const workspaceStatus = createStatusRelay();
+      ctx.inject(['uiSession'], child => child.effect(() => { workspaceStatus.attach(child.uiSession?.sessionStatus); return () => workspaceStatus.attach(null); }, `${ID}: workspace activity`));
       ctx.effect(() => ctx.locale.register(NS, { zh:{...dictionaries.zh,...MODEL_DICTIONARIES.zh,...ACTIVITY_DICTIONARIES.zh,...MARATHON_DICTIONARIES.zh}, en:{...dictionaries.en,...MODEL_DICTIONARIES.en,...ACTIVITY_DICTIONARIES.en,...MARATHON_DICTIONARIES.en} }), `${ID}: locale`);
       ctx.effect(() => {
         const root = document.documentElement;
@@ -211,10 +215,10 @@ window.__ModuleLoader__.load({
 
       ctx.effect(installComposerMenuClearance,`${ID}: native composer menu clearance`);
       ctx.effect(()=>{motionController=installSkinMotion(getMotion);const onReduce=()=>syncAppearance();reduce?.addEventListener('change',onReduce);return()=>{reduce?.removeEventListener('change',onReduce);motionController.dispose();motionController=undefined;for(const row of document.querySelectorAll('[data-acid-ordinal]'))row.removeAttribute('data-acid-ordinal');};},`${ID}: retractable motion`);
-      ctx.effect(()=>{marathonDirector=createMarathonDirector({getMotion});const dispose=installMarathonProtocol({store:marathonStore,director:marathonDirector});return()=>{dispose();marathonDirector=undefined;};},`${ID}: secret terminal protocol`);
+      ctx.effect(()=>{marathonDirector=createMarathonDirector({getMotion,getScope:()=>marathonStore.get().scope});const dispose=installMarathonProtocol({store:marathonStore,director:marathonDirector});return()=>{dispose();marathonDirector=undefined;};},`${ID}: secret terminal protocol`);
       ctx.effect(()=>{if(getMotion()==='off')return;const intro=document.createElement('div');intro.className='acid-intro';intro.setAttribute('aria-hidden','true');intro.innerHTML='<div class=acid-intro-name>DEEPSEEK<span>HARNESS</span></div><div class=acid-intro-bar></div>';document.body.append(intro);const timer=setTimeout(()=>intro.remove(),1250);return()=>{clearTimeout(timer);intro.remove();};},`${ID}: opening sequence`);
       const register = (name, id, Component, extra = {}) => ctx.slots.inject(name, () => ctx.slots.register({ name, id, locale: NS, ...extra }, Component));
-      register('shell.overlay', 'industrial.masthead', props=>h(Masthead,{...props,useAppearance,getMotion,motion:()=>motionController,toggleSidebar:()=>ctx.layout.toggleSidebar(),goHome:()=>ctx.layout.selectPanel(null),pickWorkspace:id=>ctx.uiWorkspace.openWorkspace(id).catch(()=>{})}), { order: -1000 });
+      register('shell.overlay', 'industrial.masthead', props=>h(Masthead,{...props,statusSource:workspaceStatus,useAppearance,getMotion,motion:()=>motionController,toggleSidebar:()=>ctx.layout.toggleSidebar(),goHome:()=>ctx.layout.selectPanel(null),pickWorkspace:id=>ctx.uiWorkspace.openWorkspace(id).catch(()=>{})}), { order: -1000 });
       register('conversation.hero.brand.mark', 'industrial.hero', HeroMark, { priority: -50 });
       register('sidebar.footer.action', 'industrial.signature', AppearanceFooter, { order: 1000 });
       register('settings.header', 'industrial.settings-header', SettingsHeader, { priority: -50 });
@@ -223,6 +227,6 @@ window.__ModuleLoader__.load({
       installModelControls(ctx, useAppearance);
     }
 
-    return { inject: ['slots', 'locale', 'theme', 'layout', 'uiWorkspace', 'connection'], apply, tokenOverrides, workspaceContext, formatWorkspaceIndex, normalizePalettes, normalizeCanvas, resolveMode, makeScheme, contrast, DEFAULT_PALETTES, PALETTE_PRESETS, modelControlSnapshot, effortSelection, modelPopoverPlacement, effortVisual, selectionIdentity, createMaxEpisode, acceptedDuration, ACCEPTED_MOTION, rankWorkspaces, moveInOrder, workspaceNumbers, markWorkspaceReorder, migrateIdentity, MARATHON_EGGS, MARATHON_FINALE, MARATHON_SEQUENCE, MARATHON_SEQUENCE_WINDOW, MARATHON_THEME, MARATHON_PREF, MARATHON_SCENES, normalizeMarathonText, matchMarathonKeyword, normalizeMarathonState, advanceMarathonSequence, createMarathonGate, createMarathonStore, recordMarathonTrigger, installMarathonProtocol };
+    return { inject: ['slots', 'locale', 'theme', 'layout', 'uiWorkspace', 'connection'], apply, tokenOverrides, workspaceContext, formatWorkspaceIndex, normalizePalettes, normalizeCanvas, resolveMode, makeScheme, contrast, DEFAULT_PALETTES, PALETTE_PRESETS, modelControlSnapshot, effortSelection, modelPopoverPlacement, effortVisual, selectionIdentity, createMaxEpisode, acceptedDuration, ACCEPTED_MOTION, rankWorkspaces, moveInOrder, workspaceNumbers, markWorkspaceReorder, migrateIdentity, MARATHON_EGGS, MARATHON_FINALE, MARATHON_SEQUENCE, MARATHON_SEQUENCE_WINDOW, MARATHON_THEME, MARATHON_PREF, MARATHON_SCENES, normalizeMarathonText, matchMarathonKeyword, normalizeMarathonState, advanceMarathonSequence, createMarathonGate, createMarathonStore, recordMarathonTrigger, installMarathonProtocol, workspaceActivity, createStatusRelay };
   }
 });

@@ -84,7 +84,7 @@ function Masthead(props){
       if(id===workspace?.workspaceId){props.goHome();return;}
       props.motion()?.captureStage();props.pickWorkspace(id);
     }}):null,
-    appearance.sidebarStyle!=='classic'?h(SidebarNext,{items,numbers,workspaceId:workspace?.workspaceId,t:props.t,motion:props.motion,toggleSidebar:props.toggleSidebar,onPick:id=>{
+    appearance.sidebarStyle!=='classic'?h(SidebarNext,{items,numbers,workspaceId:workspace?.workspaceId,t:props.t,motion:props.motion,toggleSidebar:props.toggleSidebar,statusSource:props.statusSource,onPick:id=>{
       if(id===workspace?.workspaceId){props.goHome();return;}
       props.motion()?.captureStage();props.pickWorkspace(id);
     }}):null,
