@@ -4,15 +4,13 @@
 
 从 Marathon 的大色块、硬边界和工业排版开始：字标切开，按钮收方，工作区放上三位数字。正文留出空间，切换时让颜色沿着界面的方向走。
 
-`v2.4.9` · `Windows` · `Harness 0.2.0-rc.2 / 0.2.1（含 RC）`
+`v2.4.10` · `Windows / macOS` · `Harness 0.2.0-rc.2 / 0.2.1（含 RC）`
 
-[下载 2.4.9](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.9) · [安装与回退](docs/INSTALL.md) · [本次更新](docs/RELEASE-v2.4.9.md)
+[下载 2.4.10](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.10) · [安装与回退](docs/INSTALL.md) · [本次更新](docs/RELEASE-v2.4.10.md)
 
-**[PR #4 集成中的未发布候选说明](docs/PR4-INTEGRATION.md)**：下一版将采用贡献者的 macOS 右上角窗口按钮方案（最小化/缩放需辅助功能权限），与下方已发布 rc.1 的原生红黄绿留白方案不同。
+**v2.4.10 正式版**：解决不同系统、不同构建的 CSS Module 哈希不一致导致的皮肤样式失效；采用 [Siyuan-Zhao770707 的 PR #4](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/pull/4) 主要实现。macOS 增加竖向窗口按钮，部分操作需要系统辅助功能权限，仍欢迎 Mac 用户实机反馈。详情见 [更新说明](docs/RELEASE-v2.4.10.md)。
 
-**[2.4.10-rc.1：macOS 兼容性测试版](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.10-rc.1)。该版本对 Windows 用户没有功能或体验改进，Windows 用户无需升级，继续使用正式版 2.4.9。**
-
-本预发布版用于测试本皮肤对 macOS 的兼容性：尝试修复跨构建 CSS module 哈希导致的样式与交互失效，并在 Mac 非全屏窗口顶部为原生红黄绿按钮预留位置。选择器方案参考 [Siyuan-Zhao770707 的 PR #4](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/pull/4)。当前验证使用 Windows 宿主及替换哈希后的浏览器模拟，Mac 原生按钮仍需实机复测；详见 [本版发布说明](docs/RELEASE-v2.4.10-rc.1.md) 和 [复测步骤](docs/MACOS-COMPATIBILITY.md)。
+[历史预发行版 v2.4.10-rc.1](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.10-rc.1) 采用不同的 macOS 窗口留白方案，不代表正式版的实现。
 
 ![2.4.6 新版色条工作区与竖排窗口按钮，独立展示页](docs/media/next-overview.png)
 
@@ -24,7 +22,7 @@
 
 皮肤里新增了许多围绕 **Marathon IP memes** 的彩蛋，留给熟悉这个系列的你慢慢发现。彩蛋中的图形、字形和文案均为原创，未使用游戏的原始界面、标志或音频。
 
-这些彩蛋与工作区色条状态动画也包含在 **v2.4.9 安装包**中，下载后即可在 Harness 中安装，无需构建源码。
+这些彩蛋与工作区色条状态动画也包含在 **v2.4.10 安装包**中，下载后即可在 Harness 中安装，无需构建源码。
 
 ## 2.4.6：工作区收进色条
 
@@ -178,18 +176,16 @@
 
 ## 安装
 
-1. 下载 [v2.4.9 发布包](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.9) 中的 `dsh-industrial-acid-skin-2.4.9.tgz`。日常安装无需 Node.js 或源码构建；历史版本见 [Releases](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases)。
-2. 打开 Harness「插件 → 添加插件」，在**包名或地址**输入框粘贴下方完整下载地址（也可先下载，再输入本机的**绝对路径**，例如 `C:\Users\你的用户名\Downloads\dsh-industrial-acid-skin-2.4.9.tgz`）：
+1. 下载 [v2.4.10 正式版](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.10) 中的 `dsh-industrial-acid-skin-2.4.10.tgz`。无需 Node.js。
+2. Harness「插件 → 添加插件」，粘贴完整下载链接，或输入已下载文件的本机绝对路径：
 
    ```text
-   https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/download/v2.4.9/dsh-industrial-acid-skin-2.4.9.tgz
+https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/download/v2.4.10/dsh-industrial-acid-skin-2.4.10.tgz
    ```
 
-   输入框不会按文件名搜索 GitHub Release；只输入 `dsh-industrial-acid-skin-2.4.9` 会触发 npm 查询并提示「未找到相关插件」。请使用完整 URL 或本机绝对路径。
-3. 安装完成后点「立即启用」；如 Harness 提示需要重启，则重启客户端。
-4. 在侧栏调色盘，或「设置 → 通用设置 → 皮肤外观」里调整颜色、动效和工作区样式。
+3. 启用插件，按提示重启。Windows 的可选桌面标题栏适配器仍可沿用原版；新安装前必须按 [说明](docs/DESKTOP-ADAPTER.md) 校验宿主版本与哈希。macOS 最小化与全屏控制可能需要系统辅助功能权限。
 
-本次桌面验证环境为 **Windows / Harness 0.2.1-rc.3**，兼容声明覆盖 0.2.0-rc.2 至 0.2.1（含 RC）。合并 2.4.3 的消息气泡可读性修复后，**51 项自动测试通过**；经典单列表切回色条另有 **18 项真实界面检查**，产出卡片与箭头再通过 **8 项检查**。真实界面记录留在本机，公开展示使用虚构数据。
+Windows 90/90 项自动测试通过，维护者已确认在真实 Windows Harness 客户端正常运行。macOS、Ubuntu 自动测试通过，但 macOS 窗口交互仍需实机反馈。
 
 想自己拨一拨滑块、试一下切换，可以运行仓库里的展示页：
 
