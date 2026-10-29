@@ -2,6 +2,9 @@ name: Publish v2.4.10 stable
 
 # The only publication trigger is the addition of these approved release notes to main.
 on:
+  pull_request:
+    paths:
+      - docs/RELEASE-v2.4.10.md
   push:
     branches: [main]
     paths:
@@ -54,6 +57,7 @@ jobs:
           if (-not ((Get-Content dist/SHA256SUMS.txt -Raw).Contains($expected))) { throw "Checksum manifest mismatch" }
           Write-Output "Approved Windows artifact SHA256: $hash"
       - name: Publish official stable release
+        if: github.event_name == 'push'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
