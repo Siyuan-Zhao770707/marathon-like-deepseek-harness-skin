@@ -4,10 +4,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 
 let installWindowControlHost, applyWindowAction, WINDOW_ACTIONS;
 test('load the host module', async () => {
-  ({ installWindowControlHost, applyWindowAction, WINDOW_ACTIONS } = await import(path.join(__dirname, '..', 'lib', 'window-control-host.js')));
+  ({ installWindowControlHost, applyWindowAction, WINDOW_ACTIONS } = await import(pathToFileURL(path.join(__dirname, '..', 'lib', 'window-control-host.js')).href));
 });
 
 function hostWith(handler) {
