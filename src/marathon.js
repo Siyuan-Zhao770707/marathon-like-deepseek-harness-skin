@@ -47,7 +47,7 @@ function installMarathonProtocol({ store, director, now = () => Date.now() }) {
   const controller = new AbortController(), options = { capture: true, passive: true, signal: controller.signal };
   let target = null, timer = 0, composing = false;
   const observer = typeof MutationObserver === 'function' ? new MutationObserver(() => { if (!composing) schedule(MARATHON_DEBOUNCE); }) : null;
-  const composerOf = node => node?.closest?.(MARATHON_INPUT) ?? null;
+  const composerOf = node => node?.closest?.(marathonInput()) ?? null;
   function attach(node) {
     if (node === target) return;
     observer?.disconnect(); target = node; gate.release();

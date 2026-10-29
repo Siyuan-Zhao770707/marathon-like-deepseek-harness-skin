@@ -1,6 +1,8 @@
 // The host owns state and text. These effects own only disposable visual layers.
 let activeAcceptedMotion;
-const COMPOSER_SELECTOR='[data-composer-card=true],.RlGAzG_card';
+// Resolved per use: at module scope the app tree does not exist yet, so a frozen value here
+// would silently disable composer decoration for the whole session.
+const composerSelector=()=>moduleSelector('[data-composer-card=true],.RlGAzG_card');
 const ACCEPTED_MOTION = Object.freeze({hover:300,press:380,page:600,workspace:560,menu:500,dialog:600,composer:360,trace:500,signal:1200});
 function acceptedDuration(kind, motion) { return motion === 'off' ? 0 : Math.round(ACCEPTED_MOTION[kind] * (motion === 'quiet' ? .3 : 1)); }
 function nativeRightTrack(columns) { return Number(/minmax\(0px,\s*([\d.]+)px\)\s*$/.exec(columns)?.[1]??0); }
@@ -28,10 +30,10 @@ function createAcceptedMotionController(getMotion) {
   const buttons = new Set(), composers = new Set(), statuses = new Map(), panels = new Map();
   const shellSurfaces=new Map(),dockBodies=new Map(),railFrames=new Map();
   const controller = new AbortController(), ease = 'cubic-bezier(.2,.78,.25,1)';
-  const panelSelector = '.acid-model-popover,.acid-dialog[open],.AnXs9G_panel,[data-trigger-menu],.haSm5q_details,[role="dialog"]:not(.acid-dialog)';
+  const panelSelector = moduleSelector('.acid-model-popover,.acid-dialog[open],.AnXs9G_panel,[data-trigger-menu],.haSm5q_details,[role="dialog"]:not(.acid-dialog)');
   let disposed = false, pendingStage, routeRun, workspaceRun, navigationFrame, observedFrame;
   const geometryObserver=new MutationObserver(()=>scanShellSurfaces());
-  const localRouteSelector='.Dc7zOa_tab,[data-row-key^="session:"][role="treeitem"]';
+  const localRouteSelector=moduleSelector('.Dc7zOa_tab,[data-row-key^="session:"][role="treeitem"]');
 
   function run(owner, duration, done = () => {}) {
     const current = { owner, animations:[], nodes:[], timers:[], ended:false, done,
@@ -136,11 +138,11 @@ function createAcceptedMotionController(getMotion) {
     for(const[name,value]of Object.entries(properties))if(frame.style.getPropertyValue(name)!==value)frame.style.setProperty(name,value);
   }
   function scanShellSurfaces() {
-    const frame=document.querySelector('.mP3x-q_frame');if(!frame)return;
+    const frame=document.querySelector(moduleSelector('.mP3x-q_frame'));if(!frame)return;
     if(observedFrame!==frame){geometryObserver.disconnect();geometryObserver.observe(frame,{attributes:true,attributeFilter:['style']});observedFrame=frame;}
     syncCompactRail(frame);
     let geometryDirection;
-    const sidebar=frame.querySelector('.mP3x-q_sidebarCol');
+    const sidebar=frame.querySelector(moduleSelector('.mP3x-q_sidebarCol'));
     if(sidebar){
       const state=frame.hasAttribute('data-sidebar-collapsed')?'rail':'wide',previous=shellSurfaces.get(sidebar);
       if(previous&&previous.state!==state){previous.state=state;swapSurface(previous,sidebar,'sidebar-'+state,'left-right');geometryDirection='left-right';}
@@ -160,7 +162,7 @@ function createAcceptedMotionController(getMotion) {
     for(const pane of document.querySelectorAll('[data-dockkit-pane],[data-dockkit-float]')){
       if(excluded(pane))continue;const panel=pane.closest('[data-sidebar-right-panel]');
       if(panel&&!visiblePanels.has(panel)||pane.closest('[hidden],[aria-hidden="true"]'))continue;
-      const body=[...pane.querySelectorAll('.OUqwTW_tabBody')].find(node=>!node.closest('[hidden],[aria-hidden="true"]')&&node.getBoundingClientRect().height>0);
+      const body=[...pane.querySelectorAll(moduleSelector('.OUqwTW_tabBody'))].find(node=>!node.closest('[hidden],[aria-hidden="true"]')&&node.getBoundingClientRect().height>0);
       if(!body)continue;
       // DockKit remounts the pane element when its active content changes.
       // The native pane id remains stable; retain its pre-click snapshot.
@@ -181,12 +183,12 @@ function createAcceptedMotionController(getMotion) {
     return target.closest?.('.acid-sidebar-toggle,[data-sidebar-right-expand],[data-sidebar-right-toggle],[data-sidebar-right-mode],button[aria-label^="在侧边栏"]');
   }
   function captureStage(shell=false) {
-    pendingStage=snapshot(document.querySelector(shell?'.mP3x-q_frame':'.mP3x-q_centerCol'));
+    pendingStage=snapshot(document.querySelector(shell?moduleSelector('.mP3x-q_frame'):moduleSelector('.mP3x-q_centerCol')));
     if(pendingStage)pendingStage.shell=shell;
   }
   function revealStage(kind='page',direction='down-up') {
     routeRun?.finish(false);
-    const stage=document.querySelector('.mP3x-q_centerCol');if(!stage||getMotion()==='off'||disposed)return;
+    const stage=document.querySelector(moduleSelector('.mP3x-q_centerCol'));if(!stage||getMotion()==='off'||disposed)return;
     if(pendingStage&&performance.now()-pendingStage.time<2000) {
       const captured=pendingStage;pendingStage=null;
       // The old surface remains visible until the cover is complete; the host
@@ -244,13 +246,13 @@ function createAcceptedMotionController(getMotion) {
     [...queue.children].forEach((dot,i)=>current.animate(dot,[{opacity:.15},{opacity:1,offset:.4},{opacity:.3,offset:.75},{opacity:1}],getMotion()==='quiet'?90:300,i*(getMotion()==='quiet'?50:170),'linear'));
     statuses.set(node,{text,run:current});
   }
-  function panelKind(node) { return node.matches('.haSm5q_details')?'trace':node.matches('.acid-dialog,.AnXs9G_panel,dialog')?'dialog':'menu'; }
+  function panelKind(node) { return node.matches(moduleSelector('.haSm5q_details'))?'trace':node.matches(moduleSelector('.acid-dialog,.AnXs9G_panel,dialog'))?'dialog':'menu'; }
   function prepare(root) {
     if(excluded(root))return;
     if(root instanceof Element&&root.matches('button'))decorateButton(root);
     for(const button of root.querySelectorAll?.('button')||[])decorateButton(button);
-    if(root instanceof Element&&root.matches(COMPOSER_SELECTOR))decorateComposer(root);
-    for(const composer of root.querySelectorAll?.(COMPOSER_SELECTOR)||[])decorateComposer(composer);
+    if(root instanceof Element&&root.matches(composerSelector()))decorateComposer(root);
+    for(const composer of root.querySelectorAll?.(composerSelector())||[])decorateComposer(composer);
   }
   function scanPanels() {
     scanShellSurfaces();
@@ -313,7 +315,7 @@ function createAcceptedMotionController(getMotion) {
   document.addEventListener('pointerdown',event=>{
     capturePanels(event);const button=event.target.closest('button');
     if(button&&!excluded(button)&&event.button===0)feedback(button);
-    if(button?.matches('.wtg9ga_panelRow,.wtg9ga_newSession,.acid-brand-home,.acid-workspace-option,.Dc7zOa_tab,[data-row-key]')||button?.closest('[data-slot="sidebar.workspaces"],.wtg9ga_settingsArea'))captureStage();
+    if(button?.matches(moduleSelector('.wtg9ga_panelRow,.wtg9ga_newSession,.acid-brand-home,.acid-workspace-option,.Dc7zOa_tab,[data-row-key]'))||button?.closest(moduleSelector('[data-slot="sidebar.workspaces"],.wtg9ga_settingsArea')))captureStage();
     const route=event.target.closest(localRouteSelector);
     if(route&&route.getAttribute('aria-selected')!=='true'&&event.button===0)captureStage();
     if(shellGeometryTarget(event.target)&&event.button===0)captureStage(true);
@@ -332,8 +334,8 @@ function createAcceptedMotionController(getMotion) {
       navigationFrame=requestAnimationFrame(()=>{navigationFrame=undefined;if(pendingStage)revealStage('page');});
     }
   },{signal:controller.signal});
-  document.addEventListener('focusin',event=>{const card=event.target.closest(COMPOSER_SELECTOR);if(card&&event.target.matches('[data-composer-input=true],textarea,[contenteditable=true],[contenteditable=""]'))focusComposer(card);},{signal:controller.signal});
-  document.addEventListener('focusout',event=>{const card=event.target.closest(COMPOSER_SELECTOR);if(card&&!card.contains(event.relatedTarget))card.classList.remove('acid-composer-focused');},{signal:controller.signal});
+  document.addEventListener('focusin',event=>{const card=event.target.closest(composerSelector());if(card&&event.target.matches('[data-composer-input=true],textarea,[contenteditable=true],[contenteditable=""]'))focusComposer(card);},{signal:controller.signal});
+  document.addEventListener('focusout',event=>{const card=event.target.closest(composerSelector());if(card&&!card.contains(event.relatedTarget))card.classList.remove('acid-composer-focused');},{signal:controller.signal});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)cancel();},{signal:controller.signal});
   const api={revealStage,captureStage,cancel,cancelWorkspace,calibrateWorkspace,mask,
     closeSurface(node,done,kind='menu'){if(node?.dataset.acidClosing)return;return mask(node,{mode:'close',kind,done});},

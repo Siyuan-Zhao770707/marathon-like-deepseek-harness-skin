@@ -113,7 +113,8 @@ function createMarathonGate({ cooldown = () => MARATHON_DEFAULTS.cooldown, now =
 }
 
 // Composer fields only: the native Lexical editor, or the documented textarea fallback. Never passwords.
-const MARATHON_INPUT = '[data-composer-input=true],textarea[data-composer-input],[data-composer-card=true] textarea,.RlGAzG_card textarea';
+// Resolved per use so the gate follows the running build instead of the one at load time.
+const marathonInput = () => moduleSelector('[data-composer-input=true],textarea[data-composer-input],[data-composer-card=true] textarea,.RlGAzG_card textarea');
 function marathonComposerText(node) {
   if (!node || node.type === 'password' || node.getAttribute?.('type') === 'password') return null;
   if (node.getAttribute?.('autocomplete')?.includes('password')) return null;

@@ -37,6 +37,10 @@ html[data-industrial-acid] .acid-context{display:flex;flex-direction:row;align-i
 .acid-window-controls{display:grid;grid-template-rows:repeat(3,minmax(0,1fr));grid-template-columns:1fr;width:48px;align-self:stretch;background:var(--dsw-alias-bg-base);border-left:1px solid var(--acid-rule);-webkit-app-region:no-drag;z-index:30}
 .acid-window-controls button{padding:0;width:100%;height:100%;min-height:0;color:var(--dsw-alias-label-primary);background:transparent;border:0;border-bottom:1px solid var(--acid-accent-display);font:18px/1 var(--acid-mono);cursor:pointer;-webkit-app-region:no-drag}
 .acid-window-controls button:last-child{border-bottom:0}.acid-window-controls button:last-child:hover{color:#fff;background:#c5352d}
+/* macOS keeps the system traffic lights in the top-left, underneath this masthead, and exposes
+   no window channel to the renderer. The caption column is drawn anyway so the controls sit in the
+   same place as on Windows; the host half drives them through the accessibility API. Closing uses
+   the renderer bridge, which needs no accessibility grant. */
 /* v3d: vertical caption column sticks to top-right on Windows titlebar */
 html[data-industrial-acid][data-windows-titlebar] .acid-masthead{grid-template-columns:minmax(0,1fr) minmax(320px,1.15fr) 48px;padding-right:0}
 html[data-industrial-acid][data-windows-titlebar] .acid-masthead[data-native-controls=true]{grid-template-columns:minmax(0,.7fr) minmax(90px,140px) minmax(0,1.3fr) 48px}
