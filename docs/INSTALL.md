@@ -1,8 +1,8 @@
 # 安装与开发
 
-当前版本为 **v2.4.9**，支持色条工作区管理、独立配色与中英文统一朝向，并保留 Marathon IP memes 彩蛋与工作区状态动画。日常安装和升级只需 Release 中的 `.tgz` 运行包，无需 Node.js 或源码构建，按下方[安装步骤](#安装)操作即可。
+当前正式版 **v2.4.10**：动态识别 CSS Module 哈希，包含 PR #4 的 macOS 窗口操作实现。Windows 已经过维护者实机验收；macOS 的辅助功能授权和窗口交互仍需真实 Mac 用户复测。参见 [v2.4.10 更新说明](RELEASE-v2.4.10.md)。
 
-另有 **[v2.4.10-rc.1 macOS 兼容性测试版](RELEASE-v2.4.10-rc.1.md)**，仅用于测试本皮肤对 macOS 的兼容性。**该版本对 Windows 用户没有功能或体验改进，Windows 用户无需升级，继续使用 v2.4.9。** Mac 用户的测试安装与回退步骤见该版发布说明。
+历史的 [v2.4.10-rc.1](RELEASE-v2.4.10-rc.1.md) 使用不同的 macOS 原生红黄绿留白方案，仅供追溯。
 
 ## 2.4.9 工作区管理与独立配色
 
@@ -32,14 +32,14 @@
 
 ## 安装
 
-1. 从 [v2.4.9 Release](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.9) 下载 `dsh-industrial-acid-skin-2.4.9.tgz` 运行包。历史版本见 [Releases](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases)。
+1. 从 [v2.4.10 Release](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.10) 下载 `dsh-industrial-acid-skin-2.4.10.tgz` 运行包。历史版本见 [Releases](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases)。
 2. 在 Harness「插件 → 添加插件」的**包名或地址**输入框粘贴下方的 `.tgz` 完整 URL 后安装，完成后点击「立即启用」（提示重启时重启）：
 
    ```text
-   https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/download/v2.4.9/dsh-industrial-acid-skin-2.4.9.tgz
+   https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/download/v2.4.10/dsh-industrial-acid-skin-2.4.10.tgz
    ```
 
-   或先从 Release 下载 `.tgz`，输入下载文件的**本机绝对路径**，例如 `C:\Users\你的用户名\Downloads\dsh-industrial-acid-skin-2.4.9.tgz`。Harness 的输入框接受 npm 包名、Git 地址、tarball URL 或本地路径；不提供按文件名自动搜索 GitHub Release 的功能。只输入 `dsh-industrial-acid-skin-2.4.9` 会触发 npm 查询并出现「未找到相关插件」，这不表示发布包失效。
+   或先从 Release 下载 `.tgz`，输入下载文件的**本机绝对路径**，例如 `C:\Users\你的用户名\Downloads\dsh-industrial-acid-skin-2.4.10.tgz`。Harness 的输入框接受 npm 包名、Git 地址、tarball URL 或本地路径；不提供按文件名自动搜索 GitHub Release 的功能。只输入 `dsh-industrial-acid-skin-2.4.9` 会触发 npm 查询并出现「未找到相关插件」，这不表示发布包失效。
 3. 在侧栏底部的调色盘或“设置 → 通用设置 → 皮肤外观”调整颜色、动效和工作区样式。新版色条的调色盘入口在底部 MORE 抽屉里。
 
 运行包内置字体、SVG 和编译后的客户端，皮肤资源可离线加载。插件包名保留 `dsh-industrial-acid-skin`，便于现有安装升级并保留外观偏好。
