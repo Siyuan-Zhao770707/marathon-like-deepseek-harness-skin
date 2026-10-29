@@ -9,10 +9,69 @@ window.__ModuleLoader__.load({
     const MASTHEAD = "__MASTHEAD_SVG__";
     const SYMBOL = "__SYMBOL_SVG__";
     /*__MODULE_MAP__*/
-    const MODULE_SIGNATURES = "__MODULE_SIGNATURES__";
-    let moduleMapping = new Map();
-    const moduleSelector = selector => rewrite(selector, moduleMapping);
-    const moduleClass = name => rewrite(name, moduleMapping);
+    // The skin's stylesheet is authored against one build's module hashes. They differ between
+    // DSH builds, so every token is rewritten to the hashes of the running build. Resolution
+    // reads the live DOM: a selector can only match something already mounted, so the real class
+    // names are guaranteed to be present by the time a query runs. When a module cannot be
+    // identified the token is left alone, which looks exactly like the unpatched skin.
+    // Only these decide the first paint. Every other module the skin touches belongs to a panel
+    // that loads on demand (settings, plugin manager, deliverables), so waiting for it would
+    // delay the skin indefinitely. Resolution is atomic per module, so a module that has not
+    // loaded yet simply stays at its authored name and cannot half-apply.
+    const authored = __AUTHORED_MODULES__;
+    const structural = __STRUCTURAL_MODULES__;
+    let cssCache = null;
+    // A partial mapping is the dangerous state, not an empty one: the grid could reflow around
+    // components that are not yet styled. Painting waits for the structural modules, which is
+    // the point where the layout is finally coherent. The wait is bounded: if one of them is
+    // never published (a build that does not use that module at all), the skin would otherwise
+    // never appear, so after a short grace period the best mapping available is used instead.
+    let started = Date.now();
+    const resolveStyles = () => {
+      let mapping = new Map();
+      let complete = false;
+      try {
+        const inventory = modulesFromDocument(document, ID);
+        mapping = mapModules(CSS, inventory);
+        complete = structural.every(prefix => mapping.has(prefix));
+        if (!complete && mapping.size && Date.now() - started > 4000) complete = true;
+      } catch { mapping = new Map(); }
+      // Only reached after an invalidation, which itself only happens when a class name that was
+      // never seen before appears. The rewrite cost is therefore paid a handful of times per
+      // session instead of on every render.
+      cssCache = { css: complete ? rewrite(CSS, mapping) : '', mapping, complete };
+      return cssCache;
+    };
+    // Empty is a legitimate intermediate answer: the tree may not be mounted yet. It is cached
+    // like any other result and refreshed once new class names appear (see the observer below).
+    const currentMapping = () => cssCache ?? resolveStyles();
+    const resolvedCss = () => currentMapping().css;
+    // Inline query selectors such as `.wnFoaW_projectRow` use the same resolution. Rewriting a
+    // selector with a partial mapping would point it at the wrong module, so it waits for the
+    // complete set and otherwise falls back to the authored name.
+    const moduleSelector = selector => {
+      const { mapping, complete } = currentMapping();
+      return complete && mapping.size ? rewrite(selector, mapping) : selector;
+    };
+    // classList checks take a bare class name rather than a selector, so they need their own
+    // resolution. Without it the sidebar state machine never sees the classes it looks for, the
+    // colour-strip layout never activates, and only the classic layout survives.
+    const moduleClass = name => {
+      const { mapping, complete } = currentMapping();
+      const split = name.lastIndexOf('_');
+      if (!complete || !mapping.size || split < 1) return name;
+      const next = mapping.get(name.slice(0, split));
+      return next ? next + name.slice(split) : name;
+    };
+    // Discard the cached resolution; the next read recomputes it from the current DOM.
+    const invalidateModules = () => { cssCache = null; };
+    const paintStyle = (style, palette) => {
+      if (!style) return;
+      const css = currentMapping().css + '\n' + palette;
+      if (style.textContent === css) return;
+      style.textContent = css;
+    };
+
     /*__WORKSPACE_CORE__*/
     /*__MOTION_CORE__*/
     /*__SHELL_CORE__*/
@@ -79,12 +138,17 @@ window.__ModuleLoader__.load({
       const getSnapshot = () => view;
       const useAppearance = () => React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
+      // Re-resolve after the DOM gained class names, then repaint only if the mapping moved.
+      const refreshStyles = () => {
+        if (!ownedStyle) return;
+        invalidateModules();
+        syncAppearance();
+      };
       function syncAppearance(snapshot = themeSnapshot()) {
         const mode = resolveMode(preferences.canvas, snapshot.active.colorScheme);
         const scheme = makeScheme(mode, preferences.palettes[mode]);
         if (ownedStyle) {
-          const css = rewrite(CSS, moduleMapping) + '\nhtml[data-industrial-acid]{' + Object.entries(scheme.variables).map(([key, value]) => `${key}:${value}`).join(';') + '}';
-          if (ownedStyle.textContent !== css) ownedStyle.textContent = css;
+          paintStyle(ownedStyle, 'html[data-industrial-acid]{' + Object.entries(scheme.variables).map(([key, value]) => `${key}:${value}`).join(';') + '}');
           document.documentElement.setAttribute('data-industrial-canvas', preferences.canvas);
           document.documentElement.setAttribute('data-industrial-mode', mode);
           document.documentElement.setAttribute('data-industrial-motion',getMotion());
@@ -133,39 +197,45 @@ window.__ModuleLoader__.load({
         style.dataset.pluginCss = `${ID}/skin.css`;
         style.dataset.plugin = ID;
         ownedStyle = style;
-        moduleMapping = mapModules(MODULE_SIGNATURES, modulesFromDocument(document, ID));
         root.setAttribute('data-industrial-acid', '');root.setAttribute('data-industrial-shell','planar-v2');root.setAttribute('data-industrial-motion-set','accepted-r3');
         syncAppearance();
         root.style.setProperty('--acid-header-max', `${height}px`);
         document.head.appendChild(style);
-        let pending = 0;
+        // Host stylesheets are injected around the same time and carry each module's complete
+        // class list, so the first resolution can already be correct. They may arrive slightly
+        // after this plugin, so newly added <style> elements are watched too; a resolution that
+        // gains modules triggers one repaint. Token streaming only adds text nodes and elements,
+        // which are ignored here, so the expensive path is not taken on every keystroke.
+        // Host stylesheets are injected lazily, one per module, as bundles load. The skin holds
+        // the paint back until every module it was authored against has appeared, so a late
+        // bundle only ever adds to a correct picture; an incomplete one is never shown.
+        // A sweep is coalesced to one animation frame, and only <style> insertions count, so
+        // token streaming (text nodes and elements) never reaches the rewrite path.
+        let sweep = 0;
+        const hostStyle = node => node?.nodeType === 1 && node.tagName === 'STYLE' && node !== style;
         const observer = new MutationObserver(records => {
-          const hostStyle = node => node?.nodeType === 1 && node.tagName === 'STYLE' && node !== style;
+          if (sweep) return;
           const relevant = records.some(record => {
             const target = record.target?.nodeType === 3 ? record.target.parentNode : record.target;
             if (target === style) return false;
             return hostStyle(target) || [...record.addedNodes || [], ...record.removedNodes || []]
               .some(node => hostStyle(node) || [...node.querySelectorAll?.('style') || []].some(hostStyle));
           });
-          if (!relevant || pending) return;
-          pending = requestAnimationFrame(() => {
-            pending = 0;
-            const next = mapModules(MODULE_SIGNATURES, modulesFromDocument(document, ID));
-            if (JSON.stringify([...next]) === JSON.stringify([...moduleMapping])) return;
-            moduleMapping = next;
-            syncAppearance();
-            view = { ...view };
-            for (const listener of listeners) listener();
-          });
+          if (!relevant) return;
+          sweep = requestAnimationFrame(() => { sweep = 0; refreshStyles(); });
         });
         observer.observe(document.head, { childList: true, subtree: true, characterData: true });
+        // Some bundles append their stylesheet to <body> instead of <head>.
         observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+        // A missing structural module must not leave the initial stylesheet blank indefinitely.
+        // Explicitly retry once after the bounded four-second grace period.
+        const settleTimer = setTimeout(refreshStyles, 4100);
         return () => {
           observer.disconnect();
-          if (pending) cancelAnimationFrame(pending);
+          clearTimeout(settleTimer);
+          if (sweep) cancelAnimationFrame(sweep);
           style.remove();
           ownedStyle = undefined;
-          moduleMapping = new Map();
           for (const [key, value] of [['data-industrial-acid', previous.enabled], ['data-industrial-canvas', previous.canvas], ['data-industrial-mode', previous.mode], ['data-industrial-shell', previous.shell], ['data-industrial-motion', previous.motion], ['data-industrial-motion-set', previous.motionSet]]) {
             if (value === null) root.removeAttribute(key); else root.setAttribute(key, value);
           }
@@ -243,7 +313,7 @@ window.__ModuleLoader__.load({
       ctx.effect(()=>{marathonDirector=createMarathonDirector({getMotion,getScope:()=>marathonStore.get().scope});const dispose=installMarathonProtocol({store:marathonStore,director:marathonDirector});return()=>{dispose();marathonDirector=undefined;};},`${ID}: secret terminal protocol`);
       ctx.effect(()=>{if(getMotion()==='off')return;const intro=document.createElement('div');intro.className='acid-intro';intro.setAttribute('aria-hidden','true');intro.innerHTML='<div class=acid-intro-name>DEEPSEEK<span>HARNESS</span></div><div class=acid-intro-bar></div>';document.body.append(intro);const timer=setTimeout(()=>intro.remove(),1250);return()=>{clearTimeout(timer);intro.remove();};},`${ID}: opening sequence`);
       const register = (name, id, Component, extra = {}) => ctx.slots.inject(name, () => ctx.slots.register({ name, id, locale: NS, ...extra }, Component));
-      register('shell.overlay', 'industrial.masthead', props=>h(Masthead,{...props,statusSource:workspaceStatus,useAppearance,setWorkspaceColor,getMotion,motion:()=>motionController,toggleSidebar:()=>ctx.layout.toggleSidebar(),goHome:()=>ctx.layout.selectPanel(null),pickWorkspace:id=>ctx.uiWorkspace.openWorkspace(id).catch(()=>{})}), { order: -1000 });
+      register('shell.overlay', 'industrial.masthead', props=>h(Masthead,{...props,hostRpc:(method,payload)=>ctx.connection.rpc.call('/api',method,payload),statusSource:workspaceStatus,useAppearance,setWorkspaceColor,getMotion,motion:()=>motionController,toggleSidebar:()=>ctx.layout.toggleSidebar(),goHome:()=>ctx.layout.selectPanel(null),pickWorkspace:id=>ctx.uiWorkspace.openWorkspace(id).catch(()=>{})}), { order: -1000 });
       register('conversation.hero.brand.mark', 'industrial.hero', HeroMark, { priority: -50 });
       register('sidebar.footer.action', 'industrial.signature', AppearanceFooter, { order: 1000 });
       register('settings.header', 'industrial.settings-header', SettingsHeader, { priority: -50 });

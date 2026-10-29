@@ -53,8 +53,54 @@ function Masthead(props){
   const context=React.useRef(null),previous=React.useRef(null);
   const [picker,setPicker]=React.useState(false),[nativeState,setNativeState]=React.useState(null);
   const native=window.dshDesktop?.windowControls;
-  const winChrome=!!native;
+  // Windows reports its caption buttons through the desktop bridge; the macOS build exposes no
+  // such channel, because there the traffic lights are drawn by the system in the top-left
+  // corner. Drawing the caption column anyway keeps the skin's own top-right controls visible on
+  // macOS, where the native ones are underneath the masthead and unreachable.
+  const macCaption=/Mac/i.test(navigator.userAgentData?.platform||navigator.platform||'');
+  const winChrome=!!native||macCaption;
   React.useEffect(()=>{if(!native)return;let alive=true;const refresh=()=>native.invoke('state').then(state=>{if(alive)setNativeState(state);}).catch(()=>{});refresh();window.addEventListener('resize',refresh);return()=>{alive=false;window.removeEventListener('resize',refresh);};},[native]);
+  // Closing goes through the one window operation the desktop bridge does expose, which is gated
+  // on the shortcut revision. Reading that revision must not disturb the shortcut store:
+  // `shortcuts.get(definitions)` REPLACES the saved definitions, so passing an empty list here
+  // would silently wipe the user's shortcuts. The subscription reports the current snapshot
+  // without writing anything, so the revision is taken from there.
+  // On macOS the caption column is real: every action goes through the host half, which can reach
+  // the window's accessibility interface. `nativeState` mirrors whatever the host reports so the
+  // glyphs stay truthful after the window is moved by other means.
+  const macControls=macCaption&&!native;
+  // `ctx` is not in scope here: this component is registered from `apply`, so the RPC seam arrives
+  // as a prop. Reaching for a module-level `ctx` would throw on first render.
+  const hostRpc=props.hostRpc;
+  const hostWindow=action=>hostRpc?.('industrial-acid/window-control',{action});
+  // Closing has a renderer-side route that minimise and zoom do not: the desktop bridge exposes
+  // `keyboard.closeWindow`, gated on the current shortcut revision. It is preferred because it
+  // needs no host-side module, so it keeps working on a host started before this code existed.
+  // The revision arrives by subscription; reading it with `shortcuts.get([])` would overwrite the
+  // user's saved shortcuts, because that call persists whatever it is given.
+  const [closeRevision,setCloseRevision]=React.useState(undefined);
+  React.useEffect(()=>{
+    const shortcuts=window.dshDesktop?.shortcuts;
+    if(!shortcuts?.subscribe)return;
+    return shortcuts.subscribe(snapshot=>setCloseRevision(snapshot?.revision));
+  },[]);
+  const bridgeClose=()=>{
+    const close=window.dshDesktop?.keyboard?.closeWindow;
+    if(!close||closeRevision===undefined)return false;
+    close(closeRevision).catch(()=>{});
+    return true;
+  };
+  React.useEffect(()=>{
+    if(!macControls||!hostRpc)return;
+    let alive=true;
+    const sync=async()=>{
+      try{const result=await hostWindow('state');if(alive&&result?.ok)setNativeState(result.value);}catch{}
+    };
+    sync();
+    window.addEventListener('resize',sync);
+    const timer=setInterval(sync,4000);
+    return()=>{alive=false;window.removeEventListener('resize',sync);clearInterval(timer);};
+  },[macControls]);
   React.useLayoutEffect(()=>{
     const root=document.documentElement;
     if(identityColor){root.style.setProperty('--acid-ws-context',identityColor);root.style.setProperty('--acid-ws-context-fore',foreground(identityColor));}
@@ -68,19 +114,32 @@ function Masthead(props){
   },[workspace?.index,workspace?.workspaceId,workspace?.title,panel,items,appearance,identityColor]);
   React.useEffect(()=>{const observer=new MutationObserver(()=>syncWorkspaceOrdinals(items,workspaceNumbers(items)));observer.observe(document.querySelector('[data-slot="sidebar.workspaces"]')||document.body,{childList:true,subtree:true});return()=>observer.disconnect();},[items]);
   React.useEffect(()=>()=>cancelWorkspaceHeader(),[]);
-  const windowAction=action=>{
+  // Closing is answered by the bridge, which reports nothing back; the other two return the
+  // settled state and update the glyph. A closed window legitimately becomes unreadable, so an
+  // unavailable state after a successful action is not a failure.
+  const windowAction=async action=>{
     if(native)return native.invoke(action).then(state=>setNativeState(state)).catch(()=>{});
-    const kb=window.dshDesktop?.keyboard;
-    if(action==='close'&&kb?.closeWindow)return kb.closeWindow().catch(()=>{});
+    if(action==='close'&&bridgeClose())return;
+    if(!hostRpc)return;
+    try{
+      const result=await hostWindow(action);
+      if(result?.ok)setNativeState(result.value);
+    }catch{}
   };
   const openMenu=(name,event)=>{if(!native?.menu)return;const rect=event.currentTarget.getBoundingClientRect();native.menu(name,rect.left,rect.bottom).catch(()=>{});};
-  return h(React.Fragment,null,h('div',{className:'acid-mac-native-slot','aria-hidden':true}),h('header',{className:'acid-masthead','data-native-controls':native?'true':'false','aria-label':'DeepSeek Harness'},
+  return h(React.Fragment,null,h('header',{className:'acid-masthead','data-native-controls':native?'true':'false','aria-label':'DeepSeek Harness'},
     h('div',{className:'acid-wordmark'},h('button',{type:'button',className:'acid-brand-home','aria-label':'DeepSeek Harness',onClick:props.goHome},h(SkinSymbol,{className:'acid-brand-symbol'}),h('span',{className:'acid-wordmark-svg',dangerouslySetInnerHTML:{__html:MASTHEAD}}))),
     native?h('div',{className:'acid-menus'},h('button',{type:'button',onClick:event=>openMenu('application',event)},h('span',{'aria-hidden':true},'01'),document.documentElement.lang.startsWith('zh')?'应用':'Application'),h('button',{type:'button',onClick:event=>openMenu('edit',event)},h('span',{'aria-hidden':true},'02'),document.documentElement.lang.startsWith('zh')?'编辑':'Edit')):null,
     h('button',{ref:context,type:'button',className:'acid-context workspace-display','data-acid-identity':identityColor||undefined,style:identityColor?{'--acid-ws-context':identityColor,'--acid-ws-context-fore':foreground(identityColor)}:undefined,onClick:()=>setPicker(true),disabled:items.length===0,'aria-label':props.t('workspace')},
       h('span',{className:'workspace-counter'},h('strong',{className:'acid-context-number workspace-index',id:'workspace-index'},'—')),
       h('span',{className:'workspace-detail'},h('span',{className:'acid-meta'},'ACTIVE WORKSPACE'),h('span',{className:'workspace-name-slot'},h('span',{className:'acid-context-title',id:'workspace-name',title:workspace?.title},props.t('none')))),h('span',{className:'acid-workspace-arrow','aria-hidden':true},'↗')),
-    winChrome?h('div',{className:'acid-window-controls','data-acid-chrome':'vertical'},h('button',{type:'button','aria-label':'最小化',title:'最小化',onClick:()=>windowAction('minimize')},'−'),h('button',{type:'button','aria-label':nativeState?.maximized?'还原':'最大化',title:nativeState?.maximized?'还原':'最大化',onClick:()=>windowAction('maximize')},nativeState?.maximized?'▣':'□'),h('button',{type:'button','aria-label':'关闭',title:'关闭',onClick:()=>windowAction('close')},'×')):null),
+    winChrome?h('div',{className:'acid-window-controls','data-acid-chrome':'vertical','data-acid-mac':macCaption&&!native?'true':undefined},
+      // On macOS the desktop bridge offers no minimize or zoom channel at all, so those two
+      // buttons are present but disabled rather than silently dead. Closing is wired, because
+      // the bridge does expose exactly that one operation.
+      h('button',{type:'button','aria-label':'最小化',title:'最小化',onClick:()=>windowAction('minimize')},'−'),
+      h('button',{type:'button','aria-label':nativeState?.maximized?'还原':'最大化',title:nativeState?.maximized?'还原':'最大化',onClick:()=>windowAction('maximize')},nativeState?.maximized?'▣':'□'),
+      h('button',{type:'button','aria-label':'关闭',title:'关闭',onClick:()=>windowAction('close')},'×')):null),
     appearance.sidebarStyle==='classic'?h(WorkspaceRail,{items:ordered,numbers,workspaceId:workspace?.workspaceId,t:props.t,onPick:id=>{
       if(id===workspace?.workspaceId){props.goHome();return;}
       props.motion()?.captureStage();props.pickWorkspace(id);
