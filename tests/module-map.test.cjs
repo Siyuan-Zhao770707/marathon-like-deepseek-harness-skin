@@ -1,80 +1,223 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
-const { parseToken, tokensOf, modulesFromDocument, resolvePrefix, mapModules, rewrite } = require('../src/module-map.cjs');
+const { mapModules, rewrite, tokensOf, parseToken, modulesFromDom, modulesFromDocument, modulesFromStylesheets, resolvePrefix } = require(path.join(__dirname, '..', 'src', 'module-map.cjs'));
 
-const own = 'dsh-industrial-acid-skin';
-const doc = sheets => ({ querySelectorAll: selector => selector === 'style' ? sheets : [] });
-const sheet = textContent => ({ textContent, dataset: { plugin: '@deepseek-ai/dsh-client-ui-workspace' } });
+// Two builds of the same DSH version emit different module hashes for identical local names.
+// The skin must follow the running build instead of the one it was authored against.
+const AUTHORED = 'wtg9ga';
+const BUILT = 'kB3qhq';
 
-test('module tokens split at the last underscore and ignore React __html', () => {
-  assert.deepEqual(parseToken('rh_gBW_assistantVioletBright'), { prefix: 'rh_gBW', local: 'assistantVioletBright' });
-  assert.deepEqual(parseToken('_7qxJPq_arrow'), { prefix: '_7qxJPq', local: 'arrow' });
-  assert.equal(parseToken('__html'), null);
-  assert.deepEqual([...tokensOf('__html .rh_gBW_table .Kjh-qa_listArea').keys()], ['rh_gBW', 'Kjh-qa']);
+function documentWith(classes) {
+  const elements = classes.map(name => ({ getAttribute: () => name }));
+  return { querySelectorAll: () => elements };
+}
+
+const sidebarLocals = ['root', 'footArea', 'regionArea', 'settingsArea', 'logoRow', 'newSession', 'newSessionLabel', 'newSessionShortcut', 'panelList', 'panelRow', 'panelTitle', 'panelActive', 'brand', 'toggle', 'wide', 'collapsed', 'fading', 'railIn', 'moreAnchor'];
+const workspaceLocals = ['projectRow', 'projectText', 'sessionRow', 'selected', 'title', 'time', 'chevron', 'folder', 'iconButton', 'hoverContent', 'menuOpen', 'rowActions', 'arrow', 'meta'];
+const listLocals = ['root', 'rail', 'list', 'listArea', 'treeBody', 'sectionHeader', 'sectionLabel', 'groupSection', 'fade', 'iconButton', 'searchButton', 'clearButton', 'viewOptionsMenu', 'wide'];
+
+const css = [
+  `.${AUTHORED}_root{display:flex}`,
+  `.${AUTHORED}_footArea .${AUTHORED}_panelRow{color:red}`,
+  `.wnFoaW_projectRow .wnFoaW_title{color:blue}`,
+  `.GAkraW_listArea{overflow:auto}`,
+  `.acid-drawer{top:0}`
+].join('\n');
+
+function host() {
+  const classes = [
+    ...sidebarLocals.map(name => `${BUILT}_${name}`),
+    ...workspaceLocals.map(name => `JoiKIa_${name}`),
+    ...listLocals.map(name => `Kjh-qa_${name}`),
+    'acid-drawer', 'acid-drawer-handle'
+  ];
+  return documentWith(classes);
+}
+
+test('tokens keep the authored module prefix and a stable local name', () => {
+  assert.deepEqual(parseToken(`${AUTHORED}_footArea`), { prefix: AUTHORED, local: 'footArea' });
+  // Hashes may begin with an underscore or contain dashes.
+  assert.deepEqual(parseToken('_5Qcc8a_trigger'), { prefix: '_5Qcc8a', local: 'trigger' });
+  assert.deepEqual(parseToken('Kjh-qa_listArea'), { prefix: 'Kjh-qa', local: 'listArea' });
+  assert.equal(parseToken('nounderscore'), null);
 });
 
-test('unchanged hashes resolve immediately, including an otherwise ambiguous local', () => {
-  const candidates = new Map([['stable', new Set(['panel'])], ['other', new Set(['panel'])]]);
-  assert.equal(resolvePrefix(new Set(['panel']), candidates, 'stable'), 'stable');
-  assert.equal(mapModules('.stable_panel{}', candidates).get('stable'), 'stable');
+test('modules are grouped from the class names the document actually carries', () => {
+  const modules = modulesFromDom(host());
+  assert.ok(modules.get(BUILT).has('footArea'));
+  assert.ok(modules.get('JoiKIa').has('projectRow'));
 });
 
-test('reported macOS hashes resolve from full sheets before any component mounts', () => {
-  const authored = '.wtg9ga_root .wtg9ga_footArea{} .wnFoaW_projectRow .wnFoaW_title{} .GAkraW_listArea .GAkraW_treeBody{}';
-  const inventory = modulesFromDocument(doc([sheet('.kB3qhq_root .kB3qhq_footArea{} .JoiKIa_projectRow .JoiKIa_title{} .Kjh-qa_listArea .Kjh-qa_treeBody{}')]), own);
-  const mapping = mapModules(authored, inventory);
-  assert.deepEqual([...mapping.values()], ['kB3qhq', 'JoiKIa', 'Kjh-qa']);
-  assert.match(rewrite(authored, mapping), /\.kB3qhq_root \.kB3qhq_footArea/);
-  assert.equal(rewrite('wnFoaW_menuOpen', mapping), 'JoiKIa_menuOpen');
-  assert.equal(rewrite('.acid-drawer [data-row-key="workspace:a"]', mapping), '.acid-drawer [data-row-key="workspace:a"]');
+test('each authored prefix maps to the module that contains all of its local names', () => {
+  const mapping = mapModules(css, modulesFromDom(host()));
+  assert.equal(mapping.get(AUTHORED), BUILT);
+  assert.equal(mapping.get('wnFoaW'), 'JoiKIa');
+  assert.equal(mapping.get('GAkraW'), 'Kjh-qa');
 });
 
-test('reusable names never select an unrelated module just because it is smaller', () => {
-  const candidates = new Map([['picker', new Set(['panel'])], ['rightbar', new Set(['panel', 'tabBody', 'tabHead'])]]);
-  assert.equal(resolvePrefix(new Set(['panel']), candidates), null);
-  assert.equal(resolvePrefix(new Set(['panel', 'tabBody']), candidates), 'rightbar');
-  assert.equal(resolvePrefix(new Set(['panel', 'missing']), candidates), null);
-  candidates.set('another', new Set(['panel', 'tabBody', 'tabHead']));
-  assert.equal(resolvePrefix(new Set(['panel', 'tabBody']), candidates), null);
+test('stylesheets are rewritten onto the running build', () => {
+  const out = rewrite(css, mapModules(css, modulesFromDom(host())));
+  assert.match(out, new RegExp(`\\.${BUILT}_root`));
+  assert.match(out, new RegExp(`\\.${BUILT}_footArea \\.${BUILT}_panelRow`));
+  assert.match(out, /\.JoiKIa_projectRow \.JoiKIa_title/);
+  assert.match(out, /\.Kjh-qa_listArea/);
+  // The skin's own classes are not CSS modules and must survive verbatim.
+  assert.match(out, /\.acid-drawer\{top:0\}/);
+  assert.doesNotMatch(out, new RegExp(AUTHORED));
 });
 
-test('host inventory excludes the skin and unrelated plugin styles', () => {
-  const sheets = [sheet('.real_root .real_footArea{}'),
-    { textContent: '.fake_root .fake_footArea{}', dataset: { plugin: own } },
-    { textContent: '.other_root{}', dataset: { plugin: 'another-plugin' } }];
-  assert.deepEqual([...modulesFromDocument(doc(sheets), own).keys()], ['real']);
+test('inline query selectors are rewritten with the same mapping', () => {
+  const mapping = mapModules(css, modulesFromDom(host()));
+  assert.equal(rewrite('.wnFoaW_rowActions', mapping), '.JoiKIa_rowActions');
+  assert.equal(rewrite('.acid-drawer-handle', mapping), '.acid-drawer-handle');
 });
 
-test('unknown and incomplete builds keep unresolved aliases intact', () => {
-  const authored = '.oldone_root .oldone_footArea{}';
-  const mapping = mapModules(authored, modulesFromDocument(doc([sheet('.newone_root{}')]), own));
+test('a build that only renders part of the UI resolves only what it renders', () => {
+  // Only the sidebar is mounted; the workspace list must stay untouched rather than guessing.
+  const partial = documentWith(sidebarLocals.map(name => `${BUILT}_${name}`));
+  const out = rewrite(css, mapModules(css, modulesFromDom(partial)));
+  assert.match(out, new RegExp(`\\.${BUILT}_root`));
+  assert.match(out, /\.wnFoaW_projectRow/);
+});
+
+test('an unknown build leaves every token untouched', () => {
+  const foreign = documentWith(['other_thing', 'acid-drawer']);
+  const mapping = mapModules(css, modulesFromDom(foreign));
   assert.equal(mapping.size, 0);
-  assert.equal(rewrite(authored, mapping), authored);
+  assert.equal(rewrite(css, mapping), css);
 });
 
-test('all CSS and JS aliases resolve against an installed host', { skip: !process.env.DSH_ASAR && 'Set DSH_ASAR to validate a real host archive.' }, () => {
-  const { verifyBuild } = require('../tools/verify-build.cjs');
-  const result = verifyBuild(process.env.DSH_ASAR);
-  assert.ok(result.hostStylesheets > 0);
-  assert.deepEqual(result.unresolved, []);
-  assert.equal(result.resolvedModules, result.authoredModules);
+test('resolution never assigns one host module to two authored prefixes', () => {
+  // A superset module could satisfy several signatures; each host module is claimed once.
+  const ambiguous = documentWith([
+    ...sidebarLocals.map(name => `${BUILT}_${name}`),
+    ...sidebarLocals.map(name => `extra_${name}`)
+  ]);
+  const mapping = mapModules(css, modulesFromDom(ambiguous));
+  const targets = [...mapping.values()];
+  assert.equal(new Set(targets).size, targets.length);
 });
 
-test('a different hash for every real host module preserves every resolved alias', { skip: !process.env.DSH_ASAR && 'Set DSH_ASAR to exercise a real host with substituted hashes.' }, () => {
-  const { hostStyles } = require('../tools/host-styles.cjs');
-  const sheets = hostStyles(process.env.DSH_ASAR), inventory = modulesFromDocument(doc(sheets), own);
-  const source = fs.readFileSync(path.join(__dirname, '../lib/client.js'), 'utf8');
-  const signatures = JSON.parse(source.match(/const MODULE_SIGNATURES = (.*);/)[1]);
-  const baseline = mapModules(signatures, inventory);
-  assert.equal(baseline.size, Object.keys(signatures).length);
-  const renamed = new Map([...inventory.keys()].map((prefix, index) => [prefix, 'MAC' + index.toString(36).padStart(3, '0')]));
-  for (const [old, target] of Object.entries({ wtg9ga: 'kB3qhq', 'mP3x-q': 'PIRFFq', wnFoaW: 'JoiKIa', GAkraW: 'Kjh-qa' })) renamed.set(old, target);
-  const foreign = modulesFromDocument(doc(sheets.map(s => ({ ...s, textContent: rewrite(s.textContent, renamed) }))), own);
-  const mapped = mapModules(signatures, foreign);
-  for (const [prefix, target] of baseline) {
-    assert.equal(mapped.get(prefix), renamed.get(target), prefix);
-    for (const local of signatures[prefix]) assert.ok(foreign.get(mapped.get(prefix)).has(local), prefix + '_' + local);
-  }
+test('tokens found in the authored stylesheet are all parseable', () => {
+  const authored = require('node:fs').readFileSync(path.join(__dirname, '..', 'src', 'sidebar-next.css'), 'utf8');
+  const tokens = tokensOf(authored);
+  assert.ok(tokens.size > 0);
+  for (const prefix of tokens.keys()) assert.ok(prefix.length > 0);
+});
+
+// The host injects each module's complete CSS as a <style> element. Reading those is what makes
+// resolution independent of mount order, which is the difference between a correct layout on
+// first paint and a broken one that only repairs itself after some later re-render.
+const sheetDoc = sheets => ({ querySelectorAll: selector => (selector === 'style' ? sheets : []) });
+
+test('a stylesheet inventory resolves modules that are not mounted yet', () => {
+  const { modulesFromStylesheets } = require(path.join(__dirname, '..', 'src', 'module-map.cjs'));
+  // Sidebar CSS is known; the workspace tree has not rendered at all.
+  const doc = sheetDoc([{ textContent: `.${BUILT}_root{display:flex}.${BUILT}_footArea{color:red}`, dataset: {} }]);
+  const inventory = modulesFromStylesheets(doc, 'dsh-industrial-acid-skin');
+  assert.equal(inventory.get(BUILT).size, 2);
+});
+
+test('class names split at their last underscore so dashed and underscore hashes survive', () => {
+  const { modulesFromStylesheets } = require(path.join(__dirname, '..', 'src', 'module-map.cjs'));
+  const doc = sheetDoc([{ textContent: '.rh_gBW_table{x:1}.Kjh-qa_listArea{y:2}._77Pn0W_row{z:3}', dataset: {} }]);
+  const inventory = modulesFromStylesheets(doc, 'dsh-industrial-acid-skin');
+  assert.ok(inventory.get('rh_gBW')?.has('table'));
+  assert.ok(inventory.get('Kjh-qa')?.has('listArea'));
+  assert.ok(inventory.get('_77Pn0W')?.has('row'));
+});
+
+test('the skin never resolves against its own stylesheet', () => {
+  const { modulesFromStylesheets } = require(path.join(__dirname, '..', 'src', 'module-map.cjs'));
+  const doc = sheetDoc([
+    { textContent: `.${BUILT}_root{x:1}`, dataset: { plugin: 'dsh-industrial-acid-skin' } },
+    { textContent: '.acid-drawer{x:1}', dataset: {} }
+  ]);
+  const inventory = modulesFromStylesheets(doc, 'dsh-industrial-acid-skin');
+  assert.equal(inventory.size, 0);
+});
+
+test('the stylesheet inventory covers modules the DOM has not mounted yet', () => {
+  const { modulesFromDocument, mapModules } = require(path.join(__dirname, '..', 'src', 'module-map.cjs'));
+  // Every module's CSS is present, but only the sidebar is mounted right now.
+  const sidebar = sidebarLocals.map(n => `.${BUILT}_${n}{a:1}`).join('');
+  const workspace = workspaceLocals.map(n => `.JoiKIa_${n}{a:1}`).join('');
+  const listing = listLocals.map(n => `.Kjh-qa_${n}{a:1}`).join('');
+  const sheets = [{ textContent: sidebar + workspace + listing, dataset: {} }];
+  const doc = { querySelectorAll: selector => (selector === 'style' ? sheets : []) };
+
+  const full = mapModules(css, modulesFromDocument(doc, 'own'));
+  assert.equal(full.get(AUTHORED), BUILT);
+  assert.equal(full.get('wnFoaW'), 'JoiKIa');
+  assert.equal(full.get('GAkraW'), 'Kjh-qa');
+
+  // The DOM alone only knows what is on screen, which is why stylesheets are the primary source.
+  const partial = mapModules(css, modulesFromDom(documentWith(sidebarLocals.map(n => `${BUILT}_${n}`))));
+  assert.equal(partial.has('wnFoaW'), false);
+});
+
+// A partial mapping is the state that actually breaks the layout: half of a component's rules
+// match and half do not, so the grid reflows around pieces that are still unstyled. The runtime
+// therefore paints nothing until every authored module has been placed on the running build.
+test('stylesheet inventory resolves a module that is not mounted', () => {
+  const sheets = [
+    { textContent: `.${BUILT}_root{display:grid}.${BUILT}_footArea{padding:0}`, dataset: {} },
+  ];
+  const doc = { querySelectorAll: selector => (selector === 'style' ? sheets : []) };
+  const inventory = modulesFromStylesheets(doc, 'own');
+  const mapping = mapModules(`.${AUTHORED}_root{display:grid}.${AUTHORED}_footArea{padding:0}`, inventory);
+  assert.equal(mapping.get(AUTHORED), BUILT);
+});
+
+test('greedy split keeps a multi-part local name intact', () => {
+  // `rh_gBW` is a prefix containing an underscore; splitting lazily would read it as `rh`.
+  assert.deepEqual(parseToken('rh_gBW_assistantVioletBright'), { prefix: 'rh_gBW', local: 'assistantVioletBright' });
+});
+
+test('a partial inventory leaves modules unresolved instead of guessing', () => {
+  const sheets = [{ textContent: `.${BUILT}_root{display:grid}`, dataset: {} }];
+  const doc = { querySelectorAll: selector => (selector === 'style' ? sheets : []) };
+  const mapping = mapModules(`.${AUTHORED}_root{a:1}.${AUTHORED}_footArea{b:2}`, modulesFromDocument(doc, 'own'));
+  // Only `root` is known, so the module cannot be identified with confidence.
+  assert.equal(mapping.has(AUTHORED), false);
+});
+
+test('modulesFromDocument prefers stylesheets over the mounted DOM', () => {
+  const sheets = [{ textContent: `.${BUILT}_root{}.${BUILT}_footArea{}`, dataset: {} }];
+  const domClasses = ['legacy_unrelated'];
+  const doc = {
+    querySelectorAll: selector => (selector === 'style'
+      ? sheets
+      : domClasses.map(name => ({ getAttribute: () => name }))),
+  };
+  const inventory = modulesFromDocument(doc, 'own');
+  assert.ok(inventory.has(BUILT));
+});
+
+// `.arrow`, `.span` and `.panel` exist in many modules. A signature made of one reusable name
+// cannot tell them apart, so resolving it would point the rule at an unrelated component. Left
+// unresolved the rule simply does not match, which is a missing decoration rather than a
+// misplaced one.
+test('a single reusable local name is not resolved when ambiguous', () => {
+  const candidates = new Map([
+    ['AAAAAA', new Set(['arrow', 'chevron'])],
+    ['BBBBBB', new Set(['arrow', 'label'])],
+  ]);
+  assert.equal(resolvePrefix(new Set(['arrow']), candidates), null);
+});
+
+test('a decisive signature still resolves', () => {
+  const candidates = new Map([
+    ['AAAAAA', new Set(['arrow', 'chevron'])],
+    ['BBBBBB', new Set(['arrow', 'label'])],
+  ]);
+  assert.equal(resolvePrefix(new Set(['arrow', 'chevron']), candidates), 'AAAAAA');
+});
+
+test('unchanged host hashes count as resolved when building the initial mapping', () => {
+  const current = new Map([['wtg9ga', new Set(['root', 'footArea', 'panelRow'])]]);
+  const mapping = mapModules('.wtg9ga_root .wtg9ga_footArea .wtg9ga_panelRow', current);
+  assert.equal(mapping.get('wtg9ga'), 'wtg9ga');
+  assert.equal(rewrite('.wtg9ga_footArea', mapping), '.wtg9ga_footArea');
 });

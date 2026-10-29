@@ -30,10 +30,10 @@ function createAcceptedMotionController(getMotion) {
   const buttons = new Set(), composers = new Set(), statuses = new Map(), panels = new Map();
   const shellSurfaces=new Map(),dockBodies=new Map(),railFrames=new Map();
   const controller = new AbortController(), ease = 'cubic-bezier(.2,.78,.25,1)';
-  const panelSelector = '.acid-model-popover,.acid-dialog[open],.AnXs9G_panel,[data-trigger-menu],.haSm5q_details,[role="dialog"]:not(.acid-dialog)';
+  const panelSelector = moduleSelector('.acid-model-popover,.acid-dialog[open],.AnXs9G_panel,[data-trigger-menu],.haSm5q_details,[role="dialog"]:not(.acid-dialog)');
   let disposed = false, pendingStage, routeRun, workspaceRun, navigationFrame, observedFrame;
   const geometryObserver=new MutationObserver(()=>scanShellSurfaces());
-  const localRouteSelector='.Dc7zOa_tab,[data-row-key^="session:"][role="treeitem"]';
+  const localRouteSelector=moduleSelector('.Dc7zOa_tab,[data-row-key^="session:"][role="treeitem"]');
 
   function run(owner, duration, done = () => {}) {
     const current = { owner, animations:[], nodes:[], timers:[], ended:false, done,
@@ -257,7 +257,7 @@ function createAcceptedMotionController(getMotion) {
   function scanPanels() {
     scanShellSurfaces();
     const present=new Set();
-    for(const node of document.querySelectorAll(moduleSelector(panelSelector))) {
+    for(const node of document.querySelectorAll(panelSelector)) {
       if(excluded(node))continue;const rect=node.getBoundingClientRect();
       if(!rect.width||!rect.height||getComputedStyle(node).visibility==='hidden')continue;present.add(node);
       if(!panels.has(node)){panels.set(node,{kind:panelKind(node),captured:snapshot(node)});mask(node,{kind:panelKind(node)});}
@@ -316,18 +316,18 @@ function createAcceptedMotionController(getMotion) {
     capturePanels(event);const button=event.target.closest('button');
     if(button&&!excluded(button)&&event.button===0)feedback(button);
     if(button?.matches(moduleSelector('.wtg9ga_panelRow,.wtg9ga_newSession,.acid-brand-home,.acid-workspace-option,.Dc7zOa_tab,[data-row-key]'))||button?.closest(moduleSelector('[data-slot="sidebar.workspaces"],.wtg9ga_settingsArea')))captureStage();
-    const route=event.target.closest(moduleSelector(localRouteSelector));
+    const route=event.target.closest(localRouteSelector);
     if(route&&route.getAttribute('aria-selected')!=='true'&&event.button===0)captureStage();
     if(shellGeometryTarget(event.target)&&event.button===0)captureStage(true);
   },{capture:true,signal:controller.signal});
   document.addEventListener('keydown',event=>{
-    capturePanels(event);if(['Enter',' '].includes(event.key)&&(event.target.closest?.('button')||event.target.closest?.(moduleSelector(localRouteSelector))))captureStage(!!shellGeometryTarget(event.target));
+    capturePanels(event);if(['Enter',' '].includes(event.key)&&(event.target.closest?.('button')||event.target.closest?.(localRouteSelector)))captureStage(!!shellGeometryTarget(event.target));
     if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='b'){captureShellSurfaces();captureStage(true);}
     if((event.ctrlKey||event.metaKey)&&event.target.closest?.('[data-sidebar-right-panel]')){captureShellSurfaces();captureStage(true);}
   },{capture:true,signal:controller.signal});
   document.addEventListener('click',event=>{
     const button=event.target.closest('button');if(button&&!excluded(button)&&event.detail===0)feedback(button);
-    if(pendingStage&&event.target.closest(moduleSelector(localRouteSelector))){
+    if(pendingStage&&event.target.closest(localRouteSelector)){
       if(navigationFrame!==undefined)cancelAnimationFrame(navigationFrame);
       // Native React navigation commits first. Workspace/panel transitions may
       // already have consumed this snapshot; only cover a remaining local route.

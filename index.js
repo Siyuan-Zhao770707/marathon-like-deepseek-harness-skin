@@ -2,6 +2,7 @@ import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { installTokenActivityHost } from './lib/token-activity-host.js';
 import { installDesktopIcon } from './lib/desktop-icon-host.js';
+import { installWindowControlHost } from './lib/window-control-host.js';
 
 /** Host half: validates options and serves counters from read-only session observations. */
 export const name = 'industrial-acid-skin';
@@ -22,6 +23,9 @@ export function apply(ctx, raw = {}) {
   }
   if (raw.desktopIcon !== false) installDesktopIcon(ctx);
   ctx.inject(['connection', 'sessionQuery'], installTokenActivityHost);
+  // The macOS build exposes no window-control channel to the renderer, so the caption buttons
+  // route through the host half, which can reach the accessibility API.
+  ctx.inject(['connection'], installWindowControlHost);
   if (raw.diagnostics === true) ctx.inject(['connection', 'webServer'], (child) => {
     child.effect(() => {
       const directory = fileURLToPath(new URL('.validation/', import.meta.url));

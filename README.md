@@ -8,6 +8,8 @@
 
 [下载 2.4.9](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.9) · [安装与回退](docs/INSTALL.md) · [本次更新](docs/RELEASE-v2.4.9.md)
 
+**[PR #4 集成中的未发布候选说明](docs/PR4-INTEGRATION.md)**：下一版将采用贡献者的 macOS 右上角窗口按钮方案（最小化/缩放需辅助功能权限），与下方已发布 rc.1 的原生红黄绿留白方案不同。
+
 **[2.4.10-rc.1：macOS 兼容性测试版](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.10-rc.1)。该版本对 Windows 用户没有功能或体验改进，Windows 用户无需升级，继续使用正式版 2.4.9。**
 
 本预发布版用于测试本皮肤对 macOS 的兼容性：尝试修复跨构建 CSS module 哈希导致的样式与交互失效，并在 Mac 非全屏窗口顶部为原生红黄绿按钮预留位置。选择器方案参考 [Siyuan-Zhao770707 的 PR #4](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/pull/4)。当前验证使用 Windows 宿主及替换哈希后的浏览器模拟，Mac 原生按钮仍需实机复测；详见 [本版发布说明](docs/RELEASE-v2.4.10-rc.1.md) 和 [复测步骤](docs/MACOS-COMPATIBILITY.md)。
