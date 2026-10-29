@@ -26,8 +26,8 @@ function WorkspaceRail(props){
     let observedFrame=null,observedSidebar=null;
     const observer=new MutationObserver(()=>sync());
     const sync=()=>{
-      const frame=[...document.querySelectorAll('.mP3x-q_frame')].find(node=>!node.closest('[data-acid-motion-owned]'));
-      const sidebar=frame?.querySelector('.mP3x-q_sidebarCol');
+      const frame=[...document.querySelectorAll(moduleSelector('.mP3x-q_frame'))].find(node=>!node.closest('[data-acid-motion-owned]'));
+      const sidebar=frame?.querySelector(moduleSelector('.mP3x-q_sidebarCol'));
       if(frame!==observedFrame||sidebar!==observedSidebar){
         observer.disconnect();observedFrame=frame;observedSidebar=sidebar;
         if(frame){observer.observe(frame,{attributes:true,attributeFilter:['data-sidebar-collapsed']});observer.observe(sidebar??frame,{childList:true,subtree:true});}
@@ -35,7 +35,7 @@ function WorkspaceRail(props){
       }
       // The collapsed native browser keeps this list area empty. Leave its
       // add/search controls, wide list and React-owned children in place.
-      const next=frame?.hasAttribute('data-sidebar-collapsed')?sidebar?.querySelector('[data-slot="sidebar.workspaces"] .GAkraW_listArea'):null;
+      const next=frame?.hasAttribute('data-sidebar-collapsed')?sidebar?.querySelector(moduleSelector('[data-slot="sidebar.workspaces"] .GAkraW_listArea')):null;
       setTarget(previous=>previous===next?previous:next??null);
     };
     sync();return()=>observer.disconnect();
@@ -74,7 +74,7 @@ function Masthead(props){
     if(action==='close'&&kb?.closeWindow)return kb.closeWindow().catch(()=>{});
   };
   const openMenu=(name,event)=>{if(!native?.menu)return;const rect=event.currentTarget.getBoundingClientRect();native.menu(name,rect.left,rect.bottom).catch(()=>{});};
-  return h(React.Fragment,null,h('header',{className:'acid-masthead','data-native-controls':native?'true':'false','aria-label':'DeepSeek Harness'},
+  return h(React.Fragment,null,h('div',{className:'acid-mac-native-slot','aria-hidden':true}),h('header',{className:'acid-masthead','data-native-controls':native?'true':'false','aria-label':'DeepSeek Harness'},
     h('div',{className:'acid-wordmark'},h('button',{type:'button',className:'acid-brand-home','aria-label':'DeepSeek Harness',onClick:props.goHome},h(SkinSymbol,{className:'acid-brand-symbol'}),h('span',{className:'acid-wordmark-svg',dangerouslySetInnerHTML:{__html:MASTHEAD}}))),
     native?h('div',{className:'acid-menus'},h('button',{type:'button',onClick:event=>openMenu('application',event)},h('span',{'aria-hidden':true},'01'),document.documentElement.lang.startsWith('zh')?'应用':'Application'),h('button',{type:'button',onClick:event=>openMenu('edit',event)},h('span',{'aria-hidden':true},'02'),document.documentElement.lang.startsWith('zh')?'编辑':'Edit')):null,
     h('button',{ref:context,type:'button',className:'acid-context workspace-display','data-acid-identity':identityColor||undefined,style:identityColor?{'--acid-ws-context':identityColor,'--acid-ws-context-fore':foreground(identityColor)}:undefined,onClick:()=>setPicker(true),disabled:items.length===0,'aria-label':props.t('workspace')},

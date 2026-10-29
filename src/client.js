@@ -8,6 +8,11 @@ window.__ModuleLoader__.load({
     const CSS = "__SKIN_CSS__";
     const MASTHEAD = "__MASTHEAD_SVG__";
     const SYMBOL = "__SYMBOL_SVG__";
+    /*__MODULE_MAP__*/
+    const MODULE_SIGNATURES = "__MODULE_SIGNATURES__";
+    let moduleMapping = new Map();
+    const moduleSelector = selector => rewrite(selector, moduleMapping);
+    const moduleClass = name => rewrite(name, moduleMapping);
     /*__WORKSPACE_CORE__*/
     /*__MOTION_CORE__*/
     /*__SHELL_CORE__*/
@@ -78,7 +83,8 @@ window.__ModuleLoader__.load({
         const mode = resolveMode(preferences.canvas, snapshot.active.colorScheme);
         const scheme = makeScheme(mode, preferences.palettes[mode]);
         if (ownedStyle) {
-          ownedStyle.textContent = CSS + '\nhtml[data-industrial-acid]{' + Object.entries(scheme.variables).map(([key, value]) => `${key}:${value}`).join(';') + '}';
+          const css = rewrite(CSS, moduleMapping) + '\nhtml[data-industrial-acid]{' + Object.entries(scheme.variables).map(([key, value]) => `${key}:${value}`).join(';') + '}';
+          if (ownedStyle.textContent !== css) ownedStyle.textContent = css;
           document.documentElement.setAttribute('data-industrial-canvas', preferences.canvas);
           document.documentElement.setAttribute('data-industrial-mode', mode);
           document.documentElement.setAttribute('data-industrial-motion',getMotion());
@@ -127,13 +133,39 @@ window.__ModuleLoader__.load({
         style.dataset.pluginCss = `${ID}/skin.css`;
         style.dataset.plugin = ID;
         ownedStyle = style;
+        moduleMapping = mapModules(MODULE_SIGNATURES, modulesFromDocument(document, ID));
         root.setAttribute('data-industrial-acid', '');root.setAttribute('data-industrial-shell','planar-v2');root.setAttribute('data-industrial-motion-set','accepted-r3');
         syncAppearance();
         root.style.setProperty('--acid-header-max', `${height}px`);
         document.head.appendChild(style);
+        let pending = 0;
+        const observer = new MutationObserver(records => {
+          const hostStyle = node => node?.nodeType === 1 && node.tagName === 'STYLE' && node !== style;
+          const relevant = records.some(record => {
+            const target = record.target?.nodeType === 3 ? record.target.parentNode : record.target;
+            if (target === style) return false;
+            return hostStyle(target) || [...record.addedNodes || [], ...record.removedNodes || []]
+              .some(node => hostStyle(node) || [...node.querySelectorAll?.('style') || []].some(hostStyle));
+          });
+          if (!relevant || pending) return;
+          pending = requestAnimationFrame(() => {
+            pending = 0;
+            const next = mapModules(MODULE_SIGNATURES, modulesFromDocument(document, ID));
+            if (JSON.stringify([...next]) === JSON.stringify([...moduleMapping])) return;
+            moduleMapping = next;
+            syncAppearance();
+            view = { ...view };
+            for (const listener of listeners) listener();
+          });
+        });
+        observer.observe(document.head, { childList: true, subtree: true, characterData: true });
+        observer.observe(document.body, { childList: true, subtree: true, characterData: true });
         return () => {
+          observer.disconnect();
+          if (pending) cancelAnimationFrame(pending);
           style.remove();
           ownedStyle = undefined;
+          moduleMapping = new Map();
           for (const [key, value] of [['data-industrial-acid', previous.enabled], ['data-industrial-canvas', previous.canvas], ['data-industrial-mode', previous.mode], ['data-industrial-shell', previous.shell], ['data-industrial-motion', previous.motion], ['data-industrial-motion-set', previous.motionSet]]) {
             if (value === null) root.removeAttribute(key); else root.setAttribute(key, value);
           }
@@ -174,9 +206,9 @@ window.__ModuleLoader__.load({
         const [rail,setRail]=React.useState(document.documentElement.getAttribute('data-acid-sidebar')==='next'),transition=React.useRef(null);
         React.useLayoutEffect(()=>{const root=document.documentElement,sync=()=>setRail(root.getAttribute('data-acid-sidebar')==='next');const observer=new MutationObserver(sync);observer.observe(root,{attributes:true,attributeFilter:['data-acid-sidebar']});sync();return()=>observer.disconnect();},[]);
         React.useEffect(()=>()=>transition.current?.finish(false),[]);
-        const changeDrawer=open=>{const area=drawer.current?.closest('.wtg9ga_footArea');if(open){if(area?.dataset.acidClosing)transition.current=activeAcceptedMotion?.reopenSurface(area);setPinned(true);}else if(area&&activeAcceptedMotion)transition.current=activeAcceptedMotion.closeSurface(area,()=>setPinned(false));else setPinned(false);};
+        const changeDrawer=open=>{const area=drawer.current?.closest(moduleSelector('.wtg9ga_footArea'));if(open){if(area?.dataset.acidClosing)transition.current=activeAcceptedMotion?.reopenSurface(area);setPinned(true);}else if(area&&activeAcceptedMotion)transition.current=activeAcceptedMotion.closeSurface(area,()=>setPinned(false));else setPinned(false);};
         // NEXT: palette, day/night and the native "More" live in a bottom drawer.
-        React.useLayoutEffect(()=>{const area=drawer.current?.closest('.wtg9ga_footArea');if(!area||state.sidebarStyle!=='next'||!rail)return;area.setAttribute('data-acid-drawer',pinned?'open':'closed');if(pinned)transition.current=activeAcceptedMotion?.mask(area,{kind:'menu'});return()=>{transition.current?.finish(false);area.removeAttribute('data-acid-drawer');};},[pinned,wide,state.sidebarStyle,rail]);
+        React.useLayoutEffect(()=>{const area=drawer.current?.closest(moduleSelector('.wtg9ga_footArea'));if(!area||state.sidebarStyle!=='next'||!rail)return;area.setAttribute('data-acid-drawer',pinned?'open':'closed');if(pinned)transition.current=activeAcceptedMotion?.mask(area,{kind:'menu'});return()=>{transition.current?.finish(false);area.removeAttribute('data-acid-drawer');};},[pinned,wide,state.sidebarStyle,rail]);
         const modes=h('div', { className: `acid-mode-switch${wide ? '' : ' acid-mode-switch-rail'}`, role: 'group', 'aria-label': t('canvas') },
             ...['paper', 'night', 'adaptive'].map(value => h('button', { key: value, type: 'button', 'data-appearance-option': value, title: t(value), 'aria-label': t(value), 'aria-pressed': state.canvas === value, onClick: () => updateAppearance({ canvas: value }) }, h(ModeIcon, { value }), wide ? h('span', null, t(value)) : null)));
         const palette=h('button',{type:'button',className:'acid-palette-shortcut',onClick:()=>setPaletteOpen(true),'aria-label':t('palette')},h('span',{className:'acid-palette-swatch','aria-hidden':true}),wide?t('palette'):null,wide?h('span',{'aria-hidden':true},'↗'):null);
@@ -184,7 +216,7 @@ window.__ModuleLoader__.load({
         if(!wide||state.sidebarStyle==='classic'||!rail)return h('div', { className: 'acid-footer' }, h(TokenActivity, { wide, t, store: activityStore, useAppearance }),modes,palette,dialog);
         return h('div', { className: 'acid-footer' }, h(TokenActivity, { wide, t, store: activityStore, useAppearance }),
           h('div',{ref:drawer,className:'acid-drawer',onKeyDown:event=>{if(event.key==='Escape'){changeDrawer(false);event.currentTarget.querySelector('.acid-drawer-handle')?.focus();}}},
-            h('button',{type:'button',className:'acid-drawer-handle','aria-label':`MORE — ${t('canvas')} / ${t('palette')}`,'aria-expanded':pinned,'aria-controls':bodyId,onClick:()=>changeDrawer(!!drawer.current?.closest('.wtg9ga_footArea')?.dataset.acidClosing||!pinned)},
+            h('button',{type:'button',className:'acid-drawer-handle','aria-label':`MORE — ${t('canvas')} / ${t('palette')}`,'aria-expanded':pinned,'aria-controls':bodyId,onClick:()=>changeDrawer(!!drawer.current?.closest(moduleSelector('.wtg9ga_footArea'))?.dataset.acidClosing||!pinned)},
               h('span',{className:'acid-drawer-label'},'MORE',h('span',{className:'acid-drawer-chevron','aria-hidden':true},'⌃'))),
             h('div',{id:bodyId,className:'acid-drawer-body'},h(DrawerTools),modes,palette)),dialog);
       }

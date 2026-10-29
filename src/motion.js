@@ -3,12 +3,12 @@ function installComposerMenuClearance(){
   const key='--acid-composer-menu-height',owned=new Map();let frame=0;
   const release=(node,previous)=>{if(previous.value)node.style.setProperty(key,previous.value,previous.priority);else node.style.removeProperty(key);};
   function sync(){
-    const menus=new Set(document.querySelectorAll(':is(.RlGAzG_card,[data-composer-card=true]) [data-trigger-menu]'));
+    const menus=new Set(document.querySelectorAll(moduleSelector(':is(.RlGAzG_card,[data-composer-card=true]) [data-trigger-menu]')));
     for(const[node,previous]of owned)if(!menus.has(node)){release(node,previous);owned.delete(node);}
     for(const menu of menus){
       if(!owned.has(menu))owned.set(menu,{value:menu.style.getPropertyValue(key),priority:menu.style.getPropertyPriority(key)});
       const masthead=document.querySelector('.acid-masthead')?.getBoundingClientRect();
-      const header=menu.closest('.Dc7zOa_root')?.querySelector('.Dc7zOa_header')?.getBoundingClientRect();
+      const header=menu.closest(moduleSelector('.Dc7zOa_root'))?.querySelector(moduleSelector('.Dc7zOa_header'))?.getBoundingClientRect();
       const top=Math.max(12,masthead?.bottom??0,header?.height?header.bottom:0);
       const height=Math.max(0,Math.min(400,menu.getBoundingClientRect().bottom-top-8));
       menu.style.setProperty(key,`${height}px`);

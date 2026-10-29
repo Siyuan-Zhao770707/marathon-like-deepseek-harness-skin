@@ -1,6 +1,7 @@
 // MARATHON // SECRET TERMINAL PROTOCOL — director, timeline and scenes.
 // The stage is one disposable fixed layer. Native nodes are only touched by cancellable WAAPI animations.
-const MARATHON_CARD = '[data-composer-card=true],.RlGAzG_card';
+// Resolved per use: the stage may open long after load, when the composer finally exists.
+const marathonCard = () => moduleSelector('[data-composer-card=true],.RlGAzG_card');
 // CSS-module hashes change between DSH builds; match the stable local class name instead.
 const MARATHON_FRAME = '[class*="_centerCol"]';
 const MX_EASE = 'cubic-bezier(.2,.8,.2,1)', MX_SNAP = 'cubic-bezier(.7,0,.2,1)', MX_IN = 'cubic-bezier(.5,0,.75,0)';
@@ -805,7 +806,7 @@ function createMarathonDirector({ getMotion = () => 'full', getScope = () => 'fu
     event.preventDefault(); event.stopImmediatePropagation(); skip();
   }
   function geometry() {
-    const card = document.querySelector(MARATHON_CARD), rect = card?.getBoundingClientRect?.();
+    const card = document.querySelector(marathonCard()), rect = card?.getBoundingClientRect?.();
     const visible = rect && rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < innerHeight;
     const reserve = visible && getScope() === 'composer' ? Math.max(0, innerHeight - rect.top + 14) : 0;
     // Colour strips stay legible under the veil so the wave that runs down them can be read.
