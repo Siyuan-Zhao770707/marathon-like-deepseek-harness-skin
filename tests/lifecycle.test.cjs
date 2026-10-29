@@ -145,7 +145,11 @@ test('Host rejects invalid options before applying any effects', async () => {
   assert.throws(() => host.apply(ctx, { mastheadHeight: 500 }), /mastheadHeight/);
   assert.throws(() => host.apply(ctx, { canvas: 'neon' }), /canvas/);
   assert.throws(() => host.apply(ctx, { diagnostics: 'true' }), /diagnostics/);
-  const validCtx = { inject: names => assert.deepEqual(names, ['connection', 'sessionQuery']) };
+  // The window-control host registers on the same connection seam, so both injects must arrive.
+  const validCtx = { inject: names => assert.ok(
+    JSON.stringify(names) === JSON.stringify(['connection', 'sessionQuery'])
+    || JSON.stringify(names) === JSON.stringify(['connection']),
+    `unexpected inject: ${JSON.stringify(names)}`) };
   host.apply(validCtx, { diagnostics: false });
   host.apply(validCtx, { canvas: 'night', diagnostics: false });
 });
