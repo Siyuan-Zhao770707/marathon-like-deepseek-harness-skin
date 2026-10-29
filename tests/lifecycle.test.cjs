@@ -305,3 +305,28 @@ test('returning from classic flat lists restores native workspace grouping for e
   const restored=harness({storage:{[key]:'next'},nativeGrouping:'flat'});restored.exports.apply(restored.ctx,{});
   assert.equal(restored.getGrouping(),'workspace');restored.dispose();
 });
+
+test('workspace colour changes persist, synchronize and reset without changing identity or palettes', () => {
+  const key='dsh-industrial-acid-skin:workspace-colors',identity='dsh-industrial-acid-skin:workspace-identity';
+  const initial={v:3,next:2,map:{a:0,b:1}},runtime=harness({storage:{[identity]:JSON.stringify(initial)}});
+  runtime.exports.apply(runtime.ctx,{});
+  const masthead=owner=>owner.slots.get('industrial.masthead').Component({})[1];
+  const colors=owner=>masthead(owner).useAppearance().workspaceColors;
+  const tokens=JSON.stringify([...runtime.layers.values()][0].tokens);
+  masthead(runtime).setWorkspaceColor('a','#123abc');
+  assert.deepEqual({...colors(runtime)},{a:'#123ABC'});
+  assert.equal(runtime.storage.get(key),'{"a":"#123ABC"}');
+  masthead(runtime).setWorkspaceColor('b','red;display:none');
+  assert.deepEqual({...colors(runtime)},{a:'#123ABC'});
+  assert.equal(runtime.storage.get(identity),JSON.stringify(initial));
+  assert.equal(JSON.stringify([...runtime.layers.values()][0].tokens),tokens);
+  const restored=harness({storage:Object.fromEntries(runtime.storage)});restored.exports.apply(restored.ctx,{});
+  assert.deepEqual({...colors(restored)},{a:'#123ABC'});
+  restored.storage.set(key,'{"a":"#000000","b":"#FFFFFF","invalid":"url(evil)"}');restored.notifyStorage(key);
+  assert.deepEqual({...colors(restored)},{a:'#000000',b:'#FFFFFF'});
+  masthead(restored).setWorkspaceColor('a',null);
+  assert.deepEqual({...colors(restored)},{b:'#FFFFFF'});
+  assert.equal(restored.storage.get(identity),JSON.stringify(initial));
+  restored.storage.set(key,'{}');restored.notifyStorage(key);assert.deepEqual({...colors(restored)},{});
+  runtime.dispose();restored.dispose();
+});

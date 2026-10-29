@@ -16,6 +16,20 @@ const PALETTE_PRESETS = {
 function normalizeHex(value, fallback) {
   return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value.toUpperCase() : fallback;
 }
+function ColorField({ field, value, t, onColor, prefix='acid' }) {
+  const [draft, setDraft] = React.useState(value);
+  React.useEffect(() => setDraft(value), [value]);
+  const valid = /^#[0-9a-f]{6}$/i.test(draft);
+  const commit = () => { if (valid) onColor(draft.toUpperCase()); else setDraft(value); };
+  return h('div', { className: 'acid-color-field' },
+    h('label', { htmlFor: `${prefix}-color-${field}` }, t(field)),
+    h('div', { className: 'acid-color-inputs' },
+      h('input', { type: 'color', id: `${prefix}-color-${field}`, value, onInput: event => onColor(event.target.value) }),
+      h('input', { type: 'text', id: `${prefix}-hex-${field}`, 'aria-label': `${t(field)} ${t('hex')}`, value: draft, maxLength: 7, spellCheck: false, autoComplete: 'off', 'aria-invalid': !valid, onChange: event => {
+        setDraft(event.target.value);
+        if (/^#[0-9a-f]{6}$/i.test(event.target.value)) onColor(event.target.value.toUpperCase());
+      }, onBlur: commit, onKeyDown: event => { if (event.key === 'Enter') { commit(); event.currentTarget.blur(); } else if (event.key === 'Escape') setDraft(value); } })));
+}
 function normalizePalettes(value) {
   return Object.fromEntries(['day', 'night'].map(mode => [mode, Object.fromEntries(
     Object.entries(DEFAULT_PALETTES[mode]).map(([key, fallback]) => [key, normalizeHex(value?.[mode]?.[key], fallback)])

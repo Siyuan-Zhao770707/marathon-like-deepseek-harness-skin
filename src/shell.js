@@ -48,10 +48,11 @@ function Masthead(props){
   const items=props.useWorkspaces(state=>state.items);
   const current=props.useSessions(state=>Object.values(state.byId).find(session=>(session.retainedBy?.mainView??0)>0)?.id);
   const panel=props.usePanelInfo(state=>state.activePanelId),numbers=workspaceNumbers(items),ordered=sortByNumber(items,numbers),workspace=workspaceContext(items,current,numbers);
-  const identityColor=workspace?workspaceIdentity(items.map(item=>String(item.workspaceId)),numbers)[String(workspace.workspaceId)]:null;
+  const appearance=props.useAppearance();
+  const identityColor=workspace?workspaceIdentity(items.map(item=>String(item.workspaceId)),numbers,appearance.workspaceColors)[String(workspace.workspaceId)]:null;
   const context=React.useRef(null),previous=React.useRef(null);
   const [picker,setPicker]=React.useState(false),[nativeState,setNativeState]=React.useState(null);
-  const appearance=props.useAppearance(),native=window.dshDesktop?.windowControls;
+  const native=window.dshDesktop?.windowControls;
   const winChrome=!!native;
   React.useEffect(()=>{if(!native)return;let alive=true;const refresh=()=>native.invoke('state').then(state=>{if(alive)setNativeState(state);}).catch(()=>{});refresh();window.addEventListener('resize',refresh);return()=>{alive=false;window.removeEventListener('resize',refresh);};},[native]);
   React.useLayoutEffect(()=>{
@@ -84,7 +85,7 @@ function Masthead(props){
       if(id===workspace?.workspaceId){props.goHome();return;}
       props.motion()?.captureStage();props.pickWorkspace(id);
     }}):null,
-    appearance.sidebarStyle!=='classic'?h(SidebarNext,{items,numbers,workspaceId:workspace?.workspaceId,t:props.t,motion:props.motion,toggleSidebar:props.toggleSidebar,statusSource:props.statusSource,onPick:id=>{
+    appearance.sidebarStyle!=='classic'?h(SidebarNext,{items,numbers,workspaceId:workspace?.workspaceId,colors:appearance.workspaceColors,onColor:props.setWorkspaceColor,t:props.t,motion:props.motion,toggleSidebar:props.toggleSidebar,statusSource:props.statusSource,onPick:id=>{
       if(id===workspace?.workspaceId){props.goHome();return;}
       props.motion()?.captureStage();props.pickWorkspace(id);
     }}):null,

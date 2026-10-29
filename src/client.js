@@ -27,8 +27,8 @@ window.__ModuleLoader__.load({
       en: { 'workspace': 'WORKSPACE', 'none': 'No workspace selected', 'plugins': 'Plugins', 'settings': 'Settings', 'canvas': 'Skin appearance', 'canvas.description': 'Day and night switch the entire skin. Follow app uses the existing appearance setting.', 'paper': 'Day', 'night': 'Night', 'adaptive': 'Follow app', 'local': 'LOCAL WORKSPACE', 'palette': 'Palette', 'palette.description': 'Updates immediately. Day and night palettes are saved separately.', 'accent': 'Acid accent', 'signal': 'Interaction', 'surface': 'Reading canvas', 'text': 'Text', 'acid': 'Classic acid', 'orange': 'Industrial orange', 'polar': 'Polar signal', 'reset': 'Reset palette', 'contrast': 'Text contrast', 'adjusted': 'Text contrast enhanced; effective color', 'hex': 'HEX color', 'motion': 'Motion', 'full': 'Full', 'quiet': 'Quiet', 'off': 'Off' }
     };
 
-    Object.assign(dictionaries.zh, { 'ws.working': '工作中', 'ws.done': '已完成', 'ws.attention': '等待确认', 'sidebarStyle': '工作区样式', 'sidebarStyle.description': '切换后立即生效，并保留现有工作区和会话。', 'sidebarStyle.next': '新版色条', 'sidebarStyle.classic': '经典工作区' });
-    Object.assign(dictionaries.en, { 'ws.working': 'Working', 'ws.done': 'Completed', 'ws.attention': 'Needs input', 'sidebarStyle': 'Workspace style', 'sidebarStyle.description': 'Applies immediately and keeps existing workspaces and conversations.', 'sidebarStyle.next': 'Color strips', 'sidebarStyle.classic': 'Classic workspaces' });
+    Object.assign(dictionaries.zh, { 'ws.color': '工作区颜色', 'ws.color.reset': '恢复默认', 'ws.working': '工作中', 'ws.done': '已完成', 'ws.attention': '等待确认', 'sidebarStyle': '工作区样式', 'sidebarStyle.description': '切换后立即生效，并保留现有工作区和会话。', 'sidebarStyle.next': '新版色条', 'sidebarStyle.classic': '经典工作区' });
+    Object.assign(dictionaries.en, { 'ws.color': 'Workspace color', 'ws.color.reset': 'Reset color', 'ws.working': 'Working', 'ws.done': 'Completed', 'ws.attention': 'Needs input', 'sidebarStyle': 'Workspace style', 'sidebarStyle.description': 'Applies immediately and keeps existing workspaces and conversations.', 'sidebarStyle.next': 'Color strips', 'sidebarStyle.classic': 'Classic workspaces' });
 
     // Semantic statuses are intentionally owned by the original application.
     function tokenOverrides(canvas, inputPalettes) {
@@ -50,7 +50,7 @@ window.__ModuleLoader__.load({
     }
 
     function apply(ctx, config = {}) {
-      let preferences = { canvas: normalizeCanvas(config.canvas), palettes: normalizePalettes(), motion: 'full', sidebarStyle: 'next' };
+      let preferences = { canvas: normalizeCanvas(config.canvas), palettes: normalizePalettes(), motion: 'full', sidebarStyle: 'next', workspaceColors: {} };
       try {
         const stored = localStorage.getItem(PREF);
         if (['paper', 'night', 'adaptive'].includes(stored)) preferences.canvas = stored;
@@ -58,6 +58,7 @@ window.__ModuleLoader__.load({
       try { preferences.palettes = normalizePalettes(JSON.parse(localStorage.getItem(PALETTE_PREF))); } catch { /* Recover a malformed palette with safe defaults. */ }
       try { const storedMotion=localStorage.getItem(MOTION_PREF);if(['full','quiet','off'].includes(storedMotion))preferences.motion=storedMotion; } catch {}
       try { preferences.sidebarStyle = normalizeSidebar(localStorage.getItem(SIDEBAR_PREF)); } catch {}
+      try { preferences.workspaceColors = normalizeWorkspaceColors(JSON.parse(localStorage.getItem(WORKSPACE_COLORS_PREF))); } catch {}
       // Strips need the native workspace rows; classic lists may have selected flat grouping.
       const activateSidebar=style=>{if(style==='next')ctx.uiWorkspace?.view?.setGroupBy?.('workspace');};
       ctx.effect(()=>activateSidebar(preferences.sidebarStyle),`${ID}: workspace grouping`);
@@ -83,13 +84,13 @@ window.__ModuleLoader__.load({
           document.documentElement.setAttribute('data-industrial-motion',getMotion());
           if(getMotion()==='off')motionController?.cancel();
         }
-        if (view.canvas !== preferences.canvas || view.palettes !== preferences.palettes || view.mode !== mode || view.motion !== preferences.motion || view.effectiveMotion !== getMotion() || view.sidebarStyle !== preferences.sidebarStyle) {
+        if (view.canvas !== preferences.canvas || view.palettes !== preferences.palettes || view.mode !== mode || view.motion !== preferences.motion || view.effectiveMotion !== getMotion() || view.sidebarStyle !== preferences.sidebarStyle || view.workspaceColors !== preferences.workspaceColors) {
           view = { ...preferences, mode, effectiveMotion: getMotion() };
           for (const listener of listeners) listener();
         }
       }
       function updateAppearance(next) {
-        const updated = { canvas: normalizeCanvas(next.canvas ?? preferences.canvas), palettes: normalizePalettes(next.palettes ?? preferences.palettes), motion: ['full','quiet','off'].includes(next.motion)?next.motion:preferences.motion, sidebarStyle: normalizeSidebar(next.sidebarStyle ?? preferences.sidebarStyle) };
+        const updated = { canvas: normalizeCanvas(next.canvas ?? preferences.canvas), palettes: normalizePalettes(next.palettes ?? preferences.palettes), motion: ['full','quiet','off'].includes(next.motion)?next.motion:preferences.motion, sidebarStyle: normalizeSidebar(next.sidebarStyle ?? preferences.sidebarStyle), workspaceColors: normalizeWorkspaceColors(next.workspaceColors ?? preferences.workspaceColors) };
         if(next.sidebarStyle==='next')activateSidebar('next');
         if (JSON.stringify(updated) === JSON.stringify(preferences)) return;
         preferences = updated;
@@ -98,9 +99,15 @@ window.__ModuleLoader__.load({
           localStorage.setItem(PALETTE_PREF, JSON.stringify(preferences.palettes));
           localStorage.setItem(MOTION_PREF, preferences.motion);
           localStorage.setItem(SIDEBAR_PREF, preferences.sidebarStyle);
+          localStorage.setItem(WORKSPACE_COLORS_PREF, JSON.stringify(preferences.workspaceColors));
         } catch { /* Changes remain usable in this session if storage is blocked. */ }
         refreshTokens?.();
       }
+      const setWorkspaceColor=(id,color)=>{
+        const colors={...preferences.workspaceColors};
+        if(color===null)delete colors[id];else{const hex=normalizeHex(color,null);if(!hex)return;colors[id]=hex;}
+        updateAppearance({workspaceColors:colors});
+      };
 
       const activityStore = createTokenActivityStore(ctx);
       // Secret terminal progress holds egg IDs and timestamps only; composer text never reaches it.
@@ -136,9 +143,9 @@ window.__ModuleLoader__.load({
       ctx.on('theme/change', syncAppearance);
       ctx.effect(() => {
         const onStorage = event => {
-          if (event.key !== PREF && event.key !== PALETTE_PREF && event.key !== MOTION_PREF && event.key !== SIDEBAR_PREF && event.key !== null) return;
+          if (event.key !== PREF && event.key !== PALETTE_PREF && event.key !== MOTION_PREF && event.key !== SIDEBAR_PREF && event.key !== WORKSPACE_COLORS_PREF && event.key !== null) return;
           try {
-            preferences = { canvas: normalizeCanvas(localStorage.getItem(PREF) ?? config.canvas), palettes: normalizePalettes(JSON.parse(localStorage.getItem(PALETTE_PREF))), motion: ['full','quiet','off'].includes(localStorage.getItem(MOTION_PREF))?localStorage.getItem(MOTION_PREF):'full', sidebarStyle: normalizeSidebar(localStorage.getItem(SIDEBAR_PREF)) };
+            preferences = { canvas: normalizeCanvas(localStorage.getItem(PREF) ?? config.canvas), palettes: normalizePalettes(JSON.parse(localStorage.getItem(PALETTE_PREF))), motion: ['full','quiet','off'].includes(localStorage.getItem(MOTION_PREF))?localStorage.getItem(MOTION_PREF):'full', sidebarStyle: normalizeSidebar(localStorage.getItem(SIDEBAR_PREF)), workspaceColors: normalizeWorkspaceColors(JSON.parse(localStorage.getItem(WORKSPACE_COLORS_PREF))) };
             if(event.key===SIDEBAR_PREF||event.key===null)activateSidebar(preferences.sidebarStyle);
             refreshTokens?.();
           } catch { /* Keep the last usable colors after malformed external data. */ }
@@ -181,20 +188,6 @@ window.__ModuleLoader__.load({
               h('span',{className:'acid-drawer-label'},'MORE',h('span',{className:'acid-drawer-chevron','aria-hidden':true},'⌃'))),
             h('div',{id:bodyId,className:'acid-drawer-body'},h(DrawerTools),modes,palette)),dialog);
       }
-      function ColorField({ field, value, t, onColor, prefix='acid' }) {
-        const [draft, setDraft] = React.useState(value);
-        React.useEffect(() => setDraft(value), [value]);
-        const valid = /^#[0-9a-f]{6}$/i.test(draft);
-        const commit = () => { if (valid) onColor(draft.toUpperCase()); else setDraft(value); };
-        return h('div', { className: 'acid-color-field' },
-          h('label', { htmlFor: `${prefix}-color-${field}` }, t(field)),
-          h('div', { className: 'acid-color-inputs' },
-            h('input', { type: 'color', id: `${prefix}-color-${field}`, value, onInput: event => onColor(event.target.value) }),
-            h('input', { type: 'text', id: `${prefix}-hex-${field}`, 'aria-label': `${t(field)} ${t('hex')}`, value: draft, maxLength: 7, spellCheck: false, autoComplete: 'off', 'aria-invalid': !valid, onChange: event => {
-              setDraft(event.target.value);
-              if (/^#[0-9a-f]{6}$/i.test(event.target.value)) onColor(event.target.value.toUpperCase());
-            }, onBlur: commit, onKeyDown: event => { if (event.key === 'Enter') { commit(); event.currentTarget.blur(); } else if (event.key === 'Escape') setDraft(value); } })));
-      }
       function CanvasRow({ t, prefix='acid' }) {
         const state = useAppearance(), palette = state.palettes[state.mode], scheme = makeScheme(state.mode, palette);
         const presets = useMarathon().unlocked ? { ...PALETTE_PRESETS, rampancy: MARATHON_THEME } : PALETTE_PRESETS;
@@ -218,7 +211,7 @@ window.__ModuleLoader__.load({
       ctx.effect(()=>{marathonDirector=createMarathonDirector({getMotion,getScope:()=>marathonStore.get().scope});const dispose=installMarathonProtocol({store:marathonStore,director:marathonDirector});return()=>{dispose();marathonDirector=undefined;};},`${ID}: secret terminal protocol`);
       ctx.effect(()=>{if(getMotion()==='off')return;const intro=document.createElement('div');intro.className='acid-intro';intro.setAttribute('aria-hidden','true');intro.innerHTML='<div class=acid-intro-name>DEEPSEEK<span>HARNESS</span></div><div class=acid-intro-bar></div>';document.body.append(intro);const timer=setTimeout(()=>intro.remove(),1250);return()=>{clearTimeout(timer);intro.remove();};},`${ID}: opening sequence`);
       const register = (name, id, Component, extra = {}) => ctx.slots.inject(name, () => ctx.slots.register({ name, id, locale: NS, ...extra }, Component));
-      register('shell.overlay', 'industrial.masthead', props=>h(Masthead,{...props,statusSource:workspaceStatus,useAppearance,getMotion,motion:()=>motionController,toggleSidebar:()=>ctx.layout.toggleSidebar(),goHome:()=>ctx.layout.selectPanel(null),pickWorkspace:id=>ctx.uiWorkspace.openWorkspace(id).catch(()=>{})}), { order: -1000 });
+      register('shell.overlay', 'industrial.masthead', props=>h(Masthead,{...props,statusSource:workspaceStatus,useAppearance,setWorkspaceColor,getMotion,motion:()=>motionController,toggleSidebar:()=>ctx.layout.toggleSidebar(),goHome:()=>ctx.layout.selectPanel(null),pickWorkspace:id=>ctx.uiWorkspace.openWorkspace(id).catch(()=>{})}), { order: -1000 });
       register('conversation.hero.brand.mark', 'industrial.hero', HeroMark, { priority: -50 });
       register('sidebar.footer.action', 'industrial.signature', AppearanceFooter, { order: 1000 });
       register('settings.header', 'industrial.settings-header', SettingsHeader, { priority: -50 });

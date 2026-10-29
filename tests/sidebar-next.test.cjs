@@ -32,7 +32,7 @@ test('strips interlock: equal strips alternate columns, right column offset half
 });
 function loadNumbering(){
   let api;const store={};
-  const code=fs.readFileSync(path.join(__dirname,'../lib/client.js'),'utf8');
+  const code=fs.readFileSync(path.join(__dirname,'../lib/client.js'),'utf8').replace("return { inject: ['slots'","return { workspaceIdentity, normalizeWorkspaceColors, identityInk, inject: ['slots'");
   const localStorage={getItem:k=>k in store?store[k]:null,setItem:(k,v)=>{store[k]=String(v);}};
   vm.runInNewContext(code,{localStorage,window:{__ModuleLoader__:{load:module=>api=module.factory(()=>({createElement:(...args)=>args}))}}});
   return {api,store};
@@ -73,4 +73,19 @@ test('v3 palette migration re-maps existing workspaces by number once, then stay
   assert.equal(m.migrated,true);assert.deepEqual({...m.state.map},{c:0,a:1,b:2});assert.equal(m.state.v,3);
   assert.equal(api.migrateIdentity(m.state,['a','b','c'],{a:1,b:2,c:3}).migrated,false);
   assert.equal(api.migrateIdentity(old,[],{}).migrated,false);
+});
+
+test('custom workspace colours override identity without changing numbering or the default slots',()=>{
+  const {api,store}=loadNumbering(),ids=['a','b'],numbers={a:1,b:2};
+  const defaults=api.workspaceIdentity(ids,numbers),saved=store['dsh-industrial-acid-skin:workspace-identity'];
+  const colors=api.normalizeWorkspaceColors({a:'#123abc',b:'red;display:none',other:'#000000'});
+  assert.deepEqual({...colors},{a:'#123ABC',other:'#000000'});
+  const custom=api.workspaceIdentity(['b','a'],{b:1,a:2},colors);
+  assert.equal(custom.a,'#123ABC');assert.equal(custom.b,defaults.b);
+  assert.equal(store['dsh-industrial-acid-skin:workspace-identity'],saved);
+  assert.deepEqual({...api.workspaceIdentity(ids,numbers,{})},{...defaults});
+  assert.deepEqual({...api.normalizeWorkspaceColors(null)},{});
+  assert.deepEqual({...api.normalizeWorkspaceColors(['#FFFFFF'])},{});
+  assert.equal(api.identityInk('#123ABC'),'#0B0C0D');
+  for(const color of ['#000000','#FFFFFF','#777777','#123ABC'])assert.ok(api.contrast(api.identityInk(color,true),color)>=4.5);
 });

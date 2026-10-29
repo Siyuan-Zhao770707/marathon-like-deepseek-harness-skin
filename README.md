@@ -4,9 +4,9 @@
 
 从 Marathon 的大色块、硬边界和工业排版开始：字标切开，按钮收方，工作区放上三位数字。正文留出空间，切换时让颜色沿着界面的方向走。
 
-`v2.4.7` · `Windows` · `Harness 0.2.0-rc.2 / 0.2.1（含 RC）`
+`v2.4.9` · `Windows` · `Harness 0.2.0-rc.2 / 0.2.1（含 RC）`
 
-[下载 2.4.7](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.7) · [安装与回退](docs/INSTALL.md) · [本次更新](docs/RELEASE-v2.4.7.md)
+[下载 2.4.9](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.9) · [安装与回退](docs/INSTALL.md) · [本次更新](docs/RELEASE-v2.4.9.md)
 
 ![2.4.6 新版色条工作区与竖排窗口按钮，独立展示页](docs/media/next-overview.png)
 
@@ -18,11 +18,13 @@
 
 皮肤里新增了许多围绕 **Marathon IP memes** 的彩蛋，留给熟悉这个系列的你慢慢发现。彩蛋中的图形、字形和文案均为原创，未使用游戏的原始界面、标志或音频。
 
-本次彩蛋与工作区色条状态动画已包含在 **v2.4.7 安装包**中，下载后即可在 Harness 中安装，无需构建源码。
+这些彩蛋与工作区色条状态动画也包含在 **v2.4.9 安装包**中，下载后即可在 Harness 中安装，无需构建源码。
 
 ## 2.4.6：工作区收进色条
 
 **新版色条。** 113px 侧栏，两列色条错位排列。每个工作区保留自己的编号和识别色；悬停或键盘聚焦时，会话卡片从旁边展开。黑夜是黑底白字，白天是白底深字。
+
+**工作区管理与颜色。** 色条编号下方的「…」打开 Harness 原生菜单，可重命名或删除工作区，删除仍需原生确认。悬浮卡片底部可选择工作区颜色、输入六位 HEX 色值或恢复默认；配色按工作区在本机保存，顶部当前工作区同步更新，深浅颜色会自动选择清楚的文字色。中文、英文及混排名称统一侧转 90°，从下往上读。
 
 ![新版色条、工作区切换与黑白悬停卡片](docs/media/20-next-sidebar.gif)
 
@@ -170,14 +172,14 @@
 
 ## 安装
 
-1. 下载 [v2.4.7 发布包](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.7) 中的 `dsh-industrial-acid-skin-2.4.7.tgz`。日常安装无需 Node.js 或源码构建；历史版本见 [Releases](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases)。
-2. 打开 Harness「插件 → 添加插件」，在**包名或地址**输入框粘贴下方完整下载地址（也可先下载，再输入本机的**绝对路径**，例如 `C:\Users\你的用户名\Downloads\dsh-industrial-acid-skin-2.4.7.tgz`）：
+1. 下载 [v2.4.9 发布包](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/tag/v2.4.9) 中的 `dsh-industrial-acid-skin-2.4.9.tgz`。日常安装无需 Node.js 或源码构建；历史版本见 [Releases](https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases)。
+2. 打开 Harness「插件 → 添加插件」，在**包名或地址**输入框粘贴下方完整下载地址（也可先下载，再输入本机的**绝对路径**，例如 `C:\Users\你的用户名\Downloads\dsh-industrial-acid-skin-2.4.9.tgz`）：
 
    ```text
-   https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/download/v2.4.7/dsh-industrial-acid-skin-2.4.7.tgz
+   https://github.com/yasneg616/marathon-like-deepseek-harness-skin/releases/download/v2.4.9/dsh-industrial-acid-skin-2.4.9.tgz
    ```
 
-   输入框不会按文件名搜索 GitHub Release；只输入 `dsh-industrial-acid-skin-2.4.7` 会触发 npm 查询并提示「未找到相关插件」。请使用完整 URL 或本机绝对路径。
+   输入框不会按文件名搜索 GitHub Release；只输入 `dsh-industrial-acid-skin-2.4.9` 会触发 npm 查询并提示「未找到相关插件」。请使用完整 URL 或本机绝对路径。
 3. 安装完成后点「立即启用」；如 Harness 提示需要重启，则重启客户端。
 4. 在侧栏调色盘，或「设置 → 通用设置 → 皮肤外观」里调整颜色、动效和工作区样式。
 

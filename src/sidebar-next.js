@@ -2,6 +2,12 @@
 // Native rows stay mounted and own every action; this layer only arranges
 // them and proxies clicks, so ordering, menus and drag reorder stay native.
 const IDENTITY_PREF=`${ID}:workspace-identity`;
+const WORKSPACE_COLORS_PREF=`${ID}:workspace-colors`;
+function normalizeWorkspaceColors(value){
+  return Object.fromEntries(Object.entries(value&&typeof value==='object'&&!Array.isArray(value)?value:{}).flatMap(([id,color])=>{
+    const hex=normalizeHex(color,null);return hex?[[id,hex]]:[];
+  }));
+}
 // Approved v3 order: slot k keeps its persisted index, so existing workspaces
 // are re-mapped onto this palette by the slot they were already given.
 const IDENTITY_COLORS=Object.freeze(['#C6F500','#FF2D78','#FF6A1A','#2B45FF','#9B4DFF','#00D1E0','#FFE600','#00F5A0','#FF9F1C','#FF4FD8']);
@@ -27,15 +33,15 @@ function migrateIdentity(state,ids,numbers){
   const fresh=assignIdentity({next:0,map:{}},ordered).state;fresh.v=IDENTITY_VERSION;
   return {state:fresh,migrated:true};
 }
-function workspaceIdentity(ids,numbers){
+function workspaceIdentity(ids,numbers,colors={}){
   const migration=migrateIdentity(loadIdentity(),ids,numbers);
   const result=assignIdentity(migration.state,ids),state=result.state,changed=result.changed||migration.migrated;
   if(changed)try{localStorage.setItem(IDENTITY_PREF,JSON.stringify(state));}catch{}
-  return Object.fromEntries(ids.map(id=>[id,IDENTITY_COLORS[state.map[id]]]));
+  return Object.fromEntries(ids.map(id=>[id,normalizeHex(colors[id],IDENTITY_COLORS[state.map[id]])]));
 }
-// Strips always carry dark ink: the approved sheet uses dark type on every colour.
+// Keep the approved sheet's ink; custom colours select a readable foreground.
 const STRIP_INK='#0B0C0D';
-function identityInk(){return STRIP_INK;}
+function identityInk(color,custom=false){return custom?foreground(color):STRIP_INK;}
 // Stable, append-style numbering. The skin keeps its own ordered list of
 // workspace ids: the first run adopts the native order (so nothing visibly
 // renumbers), new workspaces are appended (number = count + 1), deleted ones
@@ -164,7 +170,7 @@ function DrawerTools(){
   }));
 }
 
-function WorkspaceFlyout({state,t,onEnter,onLeave,onClose,motion}){
+function WorkspaceFlyout({state,color,custom,onColor,t,onEnter,onLeave,onClose,motion}){
   const ref=React.useRef(null);
   const [rows,setRows]=React.useState(()=>sessionRows(state.group));
   React.useEffect(()=>{
@@ -176,11 +182,11 @@ function WorkspaceFlyout({state,t,onEnter,onLeave,onClose,motion}){
   // Reuse the skin's own four-colour wipe, sideways like the sidebar itself.
   React.useLayoutEffect(()=>{if(ref.current)activeAcceptedMotion?.mask(ref.current,{kind:'hover',direction:'left-right'});},[]);
   const place=state.anchor,below=place.top+380>window.innerHeight;
-  const style={left:place.left+'px','--acid-ws-id':state.color,'--acid-ws-id-fore':identityInk(state.color)};
+  const style={left:place.left+'px','--acid-ws-id':color};
   if(below)style.bottom=Math.max(8,window.innerHeight-place.bottom)+'px';else style.top=Math.max(8,place.top)+'px';
   const create=state.group.querySelector('.wnFoaW_projectRow .wnFoaW_rowActions button[aria-keyshortcuts]');
   const open=(entry)=>{motion()?.captureStage();entry.row.click();onClose();};
-  return createPortal(h('aside',{ref,className:'acid-ws-flyout','data-acid-motion-owned':'flyout','data-placement':below?'up':'down',style,role:'dialog','aria-label':`${state.number} ${state.name}`,onPointerEnter:onEnter,onPointerLeave:onLeave,onKeyDown:event=>{if(event.key==='Escape'){event.stopPropagation();onClose(true);}}},
+  return createPortal(h('aside',{ref,className:'acid-ws-flyout','data-acid-motion-owned':'flyout','data-placement':below?'up':'down',style,role:'dialog','aria-label':`${state.number} ${state.name}`,onPointerEnter:onEnter,onPointerLeave:onLeave,onFocus:onEnter,onBlur:event=>{if(!event.currentTarget.contains(event.relatedTarget))onLeave();},onKeyDown:event=>{if(event.key==='Escape'){event.stopPropagation();onClose(true);}}},
     h('header',{className:'acid-ws-fly-head'},
       h('span',{className:'acid-ws-fly-number'},state.number),
       h('span',{className:'acid-ws-fly-title'},h('strong',null,state.name),state.path?h('em',{title:state.path},state.path):null)),
@@ -189,15 +195,17 @@ function WorkspaceFlyout({state,t,onEnter,onLeave,onClose,motion}){
     rows.length?h('div',{className:'acid-ws-fly-list',role:'list'},...rows.map(entry=>h('button',{key:entry.key,type:'button',role:'listitem',className:'acid-ws-fly-row','aria-current':entry.selected?'true':undefined,
       onClick:()=>open(entry),onContextMenu:event=>{event.preventDefault();entry.row.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:event.clientX,clientY:event.clientY,button:2}));}},
       h('span',{className:'acid-ws-fly-name'},entry.title),entry.time?h('span',{className:'acid-ws-fly-time'},entry.time):null))):
-      h('p',{className:'acid-ws-fly-empty'},'NO CONVERSATIONS // —')),document.body);
+      h('p',{className:'acid-ws-fly-empty'},'NO CONVERSATIONS // —'),
+    h('div',{className:'acid-ws-color'},h(ColorField,{field:'ws.color',value:color,t,prefix:`acid-ws-${state.id}`,onColor}),
+      h('button',{type:'button',className:'acid-ws-color-reset',disabled:!custom,onClick:()=>onColor(null)},t('ws.color.reset')))),document.body);
 }
 
-function SidebarNext({items,numbers,workspaceId,onPick,t,motion,toggleSidebar,statusSource=idleStatusSource}){
+function SidebarNext({items,numbers,workspaceId,colors={},onColor,onPick,t,motion,toggleSidebar,statusSource=idleStatusSource}){
   const [list,setList]=React.useState(null),[tick,setTick]=React.useState(0),[fly,setFly]=React.useState(null);
   const timers=React.useRef({}),flyRef=React.useRef(null),expanded=React.useRef(new Set());
   flyRef.current=fly;
   const ids=items.map(item=>String(item.workspaceId));
-  const identity=React.useMemo(()=>workspaceIdentity(ids,numbers),[ids.join('|'),JSON.stringify(numbers||{})]);
+  const identity=React.useMemo(()=>workspaceIdentity(ids,numbers,colors),[ids.join('|'),JSON.stringify(numbers||{}),colors]);
   const byId=React.useMemo(()=>new Map(items.map((item,i)=>[String(item.workspaceId),{item,index:i}])),[items]);
   const statuses=React.useSyncExternalStore(statusSource.subscribe,statusSource.getSnapshot,statusSource.getSnapshot);
   const activity=React.useMemo(()=>workspaceActivity(items,statuses),[items,statuses]);
@@ -243,7 +251,7 @@ function SidebarNext({items,numbers,workspaceId,onPick,t,motion,toggleSidebar,st
       const place=stripPlacement(i),color=identity[id]||IDENTITY_COLORS[i%IDENTITY_COLORS.length];
       const count=byId.get(id)?.item.sessionIds?.length??sessionRows(group).length;
       group.style.gridColumn=String(place.column);group.style.gridRow=`${place.row} / span ${place.span}`;
-      group.style.setProperty('--acid-ws-id',color);group.style.setProperty('--acid-ws-id-fore',identityInk(color));
+      group.style.setProperty('--acid-ws-id',color);group.style.setProperty('--acid-ws-id-fore',identityInk(color,!!colors[id]));
       group.style.setProperty('--acid-ws-fill',Math.min(1,count/12).toFixed(3));
       group.dataset.acidWsStrip=place.lead?'lead':'strip';group.dataset.acidWsCount=row.dataset.acidCount=String(count).padStart(2,'0');
       if(id===String(workspaceId))group.dataset.acidWsActive='';else delete group.dataset.acidWsActive;
@@ -268,9 +276,9 @@ function SidebarNext({items,numbers,workspaceId,onPick,t,motion,toggleSidebar,st
     if(!list||!active)return;
     const clear=name=>{clearTimeout(timers.current[name]);timers.current[name]=undefined;};
     const restore=group=>{if(group&&expanded.current.has(group)){expanded.current.delete(group);const row=group.querySelector('[data-row-key^="workspace:"]');if(row?.getAttribute('aria-expanded')==='true')row.click();}};
-    const close=()=>{clear('open');const current=flyRef.current;if(current){restore(current.group);current.group.removeAttribute('data-acid-ws-open');}setFly(null);};
+    const close=()=>{clear('open');clear('close');const current=flyRef.current;if(current){restore(current.group);current.group.removeAttribute('data-acid-ws-open');}setFly(null);};
     const open=group=>{
-      const row=group.querySelector('[data-row-key^="workspace:"]');if(!row)return;
+      const row=group.querySelector('[data-row-key^="workspace:"]');if(!row||row.classList.contains('wnFoaW_menuOpen'))return;
       const id=row.dataset.rowKey.slice(10),{identity,byId}=live.current;
       if(flyRef.current?.group===group)return;
       if(flyRef.current){restore(flyRef.current.group);flyRef.current.group.removeAttribute('data-acid-ws-open');}
@@ -288,11 +296,11 @@ function SidebarNext({items,numbers,workspaceId,onPick,t,motion,toggleSidebar,st
       clear('open');timers.current.pending=group;
       timers.current.open=setTimeout(()=>{timers.current.open=undefined;timers.current.pending=undefined;open(group);},delay);
     };
-    const leave=()=>{clear('open');timers.current.pending=undefined;clear('close');timers.current.close=setTimeout(close,200);};
+    const leave=()=>{clear('open');timers.current.pending=undefined;clear('close');timers.current.close=setTimeout(()=>{if(!document.activeElement?.closest('.acid-ws-flyout'))close();},200);};
     const groupOf=node=>node?.closest?.('[data-acid-ws-strip]');
-    const over=event=>{const group=groupOf(event.target);if(group&&list.contains(group))schedule(group);};
+    const over=event=>{if(event.target.closest?.('.wnFoaW_rowActions')){close();return;}const group=groupOf(event.target);if(group&&list.contains(group))schedule(group);};
     const out=event=>{const from=groupOf(event.target),to=groupOf(event.relatedTarget);if(from&&from!==to&&!event.relatedTarget?.closest?.('.acid-ws-flyout'))leave();};
-    const focus=event=>{const group=groupOf(event.target);if(group)schedule(group,0);};
+    const focus=event=>{if(event.target.closest?.('.wnFoaW_rowActions')){close();return;}const group=groupOf(event.target);if(group)schedule(group,0);};
     const pick=event=>{
       if(!event.isTrusted)return;
       const row=event.target.closest?.('[data-row-key^="workspace:"]');
@@ -304,14 +312,14 @@ function SidebarNext({items,numbers,workspaceId,onPick,t,motion,toggleSidebar,st
     };
     list.addEventListener('pointerover',over);list.addEventListener('pointerout',out);list.addEventListener('focusin',focus);
     list.addEventListener('click',pick,true);list.addEventListener('keydown',pick,true);
-    const dropped=()=>markWorkspaceReorder();list.addEventListener('drop',dropped,true);list.addEventListener('dragend',dropped,true);list.addEventListener('pointerup',dropped,true);
+    const dropped=()=>markWorkspaceReorder();list.addEventListener('drop',dropped,true);list.addEventListener('dragend',dropped,true);
     timers.current.api={enter:()=>clear('close'),leave,close};
     const scroll=()=>close();list.addEventListener('scroll',scroll,{passive:true});window.addEventListener('resize',scroll);
     return()=>{list.removeEventListener('pointerover',over);list.removeEventListener('pointerout',out);list.removeEventListener('focusin',focus);
-      list.removeEventListener('click',pick,true);list.removeEventListener('keydown',pick,true);list.removeEventListener('drop',dropped,true);list.removeEventListener('dragend',dropped,true);list.removeEventListener('pointerup',dropped,true);list.removeEventListener('scroll',scroll);window.removeEventListener('resize',scroll);close();};
+      list.removeEventListener('click',pick,true);list.removeEventListener('keydown',pick,true);list.removeEventListener('drop',dropped,true);list.removeEventListener('dragend',dropped,true);list.removeEventListener('scroll',scroll);window.removeEventListener('resize',scroll);close();};
   },[list,active]);
   if(!list||!active)return null;
   const api=timers.current.api||{enter(){},leave(){},close(){}};
   return h(React.Fragment,null,createPortal(h(CommandStack,{tick}),list),
-    fly?h(WorkspaceFlyout,{key:fly.id,state:fly,t,motion,onEnter:()=>api.enter(),onLeave:()=>api.leave(),onClose:refocus=>{api.close();if(refocus)fly.group.querySelector('[data-row-key^="workspace:"]')?.focus();}}):null);
+    fly&&byId.has(fly.id)?h(WorkspaceFlyout,{key:fly.id,state:fly,color:identity[fly.id],custom:!!colors[fly.id],onColor:color=>onColor(fly.id,color),t,motion,onEnter:()=>api.enter(),onLeave:()=>api.leave(),onClose:refocus=>{api.close();if(refocus)fly.group.querySelector('[data-row-key^="workspace:"]')?.focus();}}):null);
 }
